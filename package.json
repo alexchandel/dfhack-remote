@@ -1,0 +1,21 @@
+{
+  "name": "dfhack",
+  "version": "1.0.0",
+  "description": "DFHack protobuf.js bindings",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo Error: no test specified && exit 1",
+    "proto": "protoc --proto_path=proto --js_out=import_style=commonjs,binary:build ./proto/*"
+  },
+  "keywords": [
+    "dwarf",
+    "fortress",
+    "dfhack",
+    "remote"
+  ],
+  "author": "Alex",
+  "license": "ISC",
+  "dependencies": {
+    "google-protobuf": "^3.11.4"
+  }
+}
