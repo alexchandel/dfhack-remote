@@ -31,7 +31,7 @@ class CodecError extends Error { }
 class FramedCodecError extends Error { }
 
 /**
- * @template M
+ * @template In, Out
  * @interface
  */
 class Codec {
@@ -40,11 +40,16 @@ class Codec {
      */
     open () { return null }
     /**
+     * @param {!In} input
+     * @returns {!Uint8Array}
+     */
+    encode (input) {}
+    /**
      * Decode a message from bytes.  Implementor MUST return `null` if no
      * complete reply available yet.  Implementor MUST delete bytes from
      * buf[0] that are consumed.
      * @param {[!Uint8Array]} buf
-     * @returns {?M}
+     * @returns {?Out}
      */
     decode (buf) {}
 }
@@ -115,7 +120,7 @@ class CodecRunner {
     }
 
     write (/** @type {Uint8Array} */ src) {
-        this.sock.send(src)
+        this.sock.send(this.codec.encode(src))
     }
 
     /**
@@ -151,10 +156,9 @@ class CodecRunner {
 
 const REQUEST_MAGIC_HDR = Uint8Array.from([68, 70, 72, 97, 99, 107, 63, 10, 1, 0, 0, 0]) // 'DFHack?\n' 1i32
 const RESPONSE_MAGIC_HDR = Uint8Array.from([68, 70, 72, 97, 99, 107, 33, 10, 1, 0, 0, 0]) // 'DFHack!\n' 1i32
-// const RPC_REPLY_RESULT = -1
-// const RPC_REPLY_FAIL = -2
-// const RPC_REPLY_TEXT = -3
-// const RPC_REQUEST_QUIT = -4
+/**
+ * Possible non-function IDs to be found in RPCMessage.header.id
+ */
 const RPC = {
     REPLY: {
         RESULT: -1,
@@ -165,10 +169,24 @@ const RPC = {
         QUIT: -4
     }
 }
+/**
+ * Possible error codes to be found in RPCReplyFail.header.size:
+ */
+const CR = {
+    LINK_FAILURE: -3,    // RPC call failed due to I/O or protocol error
+    NEEDS_CONSOLE: -2,   // Attempt to call interactive command without console
+    NOT_IMPLEMENTED: -1, // Command not implemented, or plugin not loaded
+    OK: 0,               // Success
+    FAILURE: 1,          // Failure
+    WRONG_USAGE: 2,      // Wrong arguments or ui state
+    NOT_FOUND: 3         // Target object not found (for RPC mainly)
+}
 
 /**
  * @constructor
  * @struct
+ * @param {number} id
+ * @param {!Uint8Array} data
  */
 function DwarfMessage (id, data) {
     this.id = id
@@ -178,21 +196,22 @@ function DwarfMessage (id, data) {
 /**
  * This codec chunks packets & RFR messages together into complete replies to a call.
  * However, it does more (perhaps too much?).  It parses the replies into objects.
- * @extends {Codec<!Array<!DwarfMessage>>}
+ * @extends {Codec<!DwarfMessage, !Array<!DwarfMessage>>}
  */
 class DwarfWireCodec extends Codec {
     /*
      * Protocol described at https://github.com/DFHack/dfhack/blob/develop/library/include/RemoteClient.h
-     * Data structures at https://github.com/DFHack/dfhack/blob/develop/library/include/RemoteClient.h
-     * Server networking at https://github.com/DFHack/dfhack/blob/develop/library/RemoteServer.cpp
+     * Data structures at    https://github.com/DFHack/dfhack/blob/develop/library/include/RemoteClient.h
+     * Server networking at  https://github.com/DFHack/dfhack/blob/develop/library/RemoteServer.cpp
+     * Some functions at     https://github.com/DFHack/dfhack/blob/develop/plugins/remotefortressreader/remotefortressreader.cpp
+     *                       https://github.com/DFHack/dfhack/blob/develop/library/RemoteTools.cpp
      *
      * RPCHandshakeHeader = { magic: [u8; 8], version: i32 == 1 }
      * RPCMessageHeader = { id: i16, size: i32 }, size <= 64MiB
      * RPCMessage = { header: RPCMessageHeader, body: [u8; header.size] }
      *      RPCReplyResult  = RPCMessage { { RPC.REPLY.RESULT, sizeof(body) }, body }
      *      RPCReplyFail    = RPCMessage { { RPC.REPLY.FAIL, errno }, }
-     * RPCReply = { RPC_REPLY_TEXT:CoreTextNotification*, RPCReplyResult | RPCReplyFail }
-     * <- { RPC_REPLY_TEXT:CoreTextNotification*, RPC_REPLY_RESULT() | RPC_REPLY_FAIL() }
+     * RPCReply = { {RPC.REPLY.TEXT, CoreTextNotification}*, RPCReplyResult | RPCReplyFail }
      *
      * Handshake:
      * -> RPCHandshakeHeader { REQUEST_MAGIC, 1 } == REQUEST_MAGIC_HDR
@@ -213,6 +232,20 @@ class DwarfWireCodec extends Codec {
      * @returns {Uint8Array}
      */
     open () { return REQUEST_MAGIC_HDR }
+
+    /**
+     * @param {!DwarfMessage} input
+     * @returns {!Uint8Array}
+     */
+    encode (input) {
+        const size = new Int32Array([input.data.length])
+        const id = new Int16Array([input.id])
+        const buf = new Uint8Array(6 + input.data.length)
+        buf.set(id.buffer, 0)
+        buf.set(size.buffer, 2)
+        buf.set(input.data, 6)
+        return buf
+    }
 
     /**
      * Attempts to decode a frame from the provided buffer of bytes.
@@ -275,6 +308,9 @@ class DwarfClient {
         this.framed = new CodecRunner(new DwarfWireCodec())
     }
 
+    /**
+     * @returns {rfr.BlockList}
+     */
     async GetBlockList (minX, minY, minZ, maxX, maxY, maxZ) {
         const req = new rfr.BlockRequest()
         req.setMinX(minX)
@@ -283,9 +319,8 @@ class DwarfClient {
         req.setMaxX(maxX)
         req.setMaxY(maxY)
         req.setMaxZ(maxZ)
-        // FIXME must write RPCMessage
-        const msgs = await this.framed.writeRead(req.serializeBinary())
-        const res = req.BlockList.deserializeBinary(msgs[0].data)
+        const msgs = await this.framed.writeRead(DwarfMessage(17, req.serializeBinary()))
+        return req.BlockList.deserializeBinary(msgs[0].data)
     }
 }
 
