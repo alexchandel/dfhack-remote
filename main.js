@@ -299,7 +299,7 @@ class DwarfWireCodec extends Codec {
                     throw new CodecError('Invalid size in RFR packet.')
                 }
             } else {
-                throw new FramedCodecError('Illegal reply ID: ' + msg.id)
+                throw new FramedCodecError('Illegal reply ID: ' + id)
             }
         }
         return null
