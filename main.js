@@ -1,4 +1,4 @@
-/* eslint indent: ["error", 4] */
+/* eslint indent: ["error", 4, {'SwitchCase': 1}] */
 const dfc = require('./build/DwarfControl_pb.js')
 const rfr = require('./build/RemoteFortressReader_pb.js')
 
@@ -31,6 +31,7 @@ class CodecError extends Error { }
 class FramedCodecError extends Error { }
 
 /**
+ * @template M
  * @interface
  */
 class Codec {
@@ -39,10 +40,13 @@ class Codec {
      */
     open () { return null }
     /**
-     * @param {[!Uint8Array]} src
-     * @returns {?Object}
+     * Decode a message from bytes.  Implementor MUST return `null` if no
+     * complete reply available yet.  Implementor MUST delete bytes from
+     * buf[0] that are consumed.
+     * @param {[!Uint8Array]} buf
+     * @returns {?M}
      */
-    decode (/** Uint8Array */ src) {}
+    decode (buf) {}
 }
 
 /**
@@ -96,7 +100,7 @@ class CodecRunner {
                         // pass DF message
                         self._popReply(maybeItem)
                     } // else, have not received enough data to decode
-                } while (prevLen > buf[0].length) // FIXME should use maybeItem != null?
+                } while (prevLen > buf[0].length) // TODO should use maybeItem != null?
             })
         }
     }
@@ -120,13 +124,18 @@ class CodecRunner {
      * @returns {!Promise}
      */
     async read () {
-        // FIXME drain this.unreadMessages if they're queued up
-        const callbackQueue = this.callbackQueue
-        // resolve is invoked if codec yields a successful item.
-        // reject is invoked if codec throws FramedCodecError.
-        return new Promise((resolve, reject) => {
-            callbackQueue.push([resolve, reject])
-        })
+        if (this.unreadMessages.length) {
+            // drain this.unreadMessages if one is queued up
+            console.warn('Response arrived before request: %s', this.unreadMessages[0])
+            return Promise.resolve(this.unreadMessages.shift())
+        } else {
+            const callbackQueue = this.callbackQueue
+            // resolve is invoked if codec yields a successful item.
+            // reject is invoked if codec throws FramedCodecError.
+            return new Promise((resolve, reject) => {
+                callbackQueue.push([resolve, reject])
+            })
+        }
     }
 
     /**
@@ -157,6 +166,20 @@ const RPC = {
     }
 }
 
+/**
+ * @constructor
+ * @struct
+ */
+function DwarfMessage (id, data) {
+    this.id = id
+    this.data = data
+}
+
+/**
+ * This codec chunks packets & RFR messages together into complete replies to a call.
+ * However, it does more (perhaps too much?).  It parses the replies into objects.
+ * @extends {Codec<!Array<!DwarfMessage>>}
+ */
 class DwarfWireCodec extends Codec {
     /*
      * Protocol described at https://github.com/DFHack/dfhack/blob/develop/library/include/RemoteClient.h
@@ -182,6 +205,8 @@ class DwarfWireCodec extends Codec {
     constructor () {
         super()
         this.shookHands = false
+        // queue of higher-level messages stripped off wire, to be returned later
+        this._textMessages = []
     }
 
     /**
@@ -194,7 +219,7 @@ class DwarfWireCodec extends Codec {
      * Returns Result<Option<Item>, Error>.
      * Rust invokes .split_to() on buffer, returning first half.
      * @param {[!Uint8Array]} buf
-     * @returns {?Object}
+     * @returns {?Array<!DwarfMessage>}
      */
     decode (buf) {
         if (!this.shookHands) {
@@ -215,13 +240,26 @@ class DwarfWireCodec extends Codec {
             // FIXME slow
             const id = (new Int16Array(buf[0].buffer.slice(0, 2)))[0]
             const size = (new Int32Array(buf[0].buffer.slice(2, 4)))[0]
+            // FIXME if id == RPC.REPLY.FAIL, then size is wrong
             if (size >= 0 && size <= 67108864 /* 2**26 */) {
                 if (buf[0].length >= 6 + size) {
                     const msgData = buf[0].slice(6, 6 + size)
                     // split_to 6 + size:
                     buf[0] = buf[0].slice(6 + size)
-                    // FIXME must collect until RESULT|FAIL
-                    return { id: id, data: msgData }
+
+                    // collect TEXT replies until a RESULT|FAIL
+                    const msg = new DwarfMessage(id, msgData)
+                    switch (msg.id) {
+                        case RPC.REPLY.TEXT:
+                            this._textMessages.push(msg)
+                            break
+                        case RPC.REPLY.RESULT:
+                            // fallthrough
+                        case RPC.REPLY.FAIL:
+                            return [msg, ...this._textMessages.splice(0)]
+                        default:
+                            throw new FramedCodecError('Illegal reply ID: ' + msg.id)
+                    }
                 }
             } else {
                 throw new CodecError('Invalid size in RFR packet.')
@@ -245,9 +283,9 @@ class DwarfClient {
         req.setMaxX(maxX)
         req.setMaxY(maxY)
         req.setMaxZ(maxZ)
-        const res = req.BlockList.deserializeBinary(
-            await this.framed.writeRead(req.serializeBinary())
-        )
+        // FIXME must write RPCMessage
+        const msgs = await this.framed.writeRead(req.serializeBinary())
+        const res = req.BlockList.deserializeBinary(msgs[0].data)
     }
 }
 
