@@ -1,5 +1,5 @@
 {
-  "name": "dfhack",
+  "name": "dfhack-remote",
   "version": "1.0.0",
   "description": "DFHack protobuf.js bindings",
   "main": "main.js",
@@ -11,11 +11,16 @@
     "dwarf",
     "fortress",
     "dfhack",
-    "remote"
+    "remote",
+    "RemoteFortressReader"
   ],
   "author": "Alex",
   "license": "ISC",
   "dependencies": {
     "google-protobuf": "^3.11.4"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/alexchandel/dfhack-remote.git"
   }
 }
