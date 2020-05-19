@@ -273,29 +273,33 @@ class DwarfWireCodec extends Codec {
             // FIXME slow
             const id = (new Int16Array(buf[0].buffer.slice(0, 2)))[0]
             const size = (new Int32Array(buf[0].buffer.slice(2, 4)))[0]
-            // FIXME if id == RPC.REPLY.FAIL, then size is wrong
-            if (size >= 0 && size <= 67108864 /* 2**26 */) {
-                if (buf[0].length >= 6 + size) {
-                    const msgData = buf[0].slice(6, 6 + size)
-                    // split_to 6 + size:
-                    buf[0] = buf[0].slice(6 + size)
 
-                    // collect TEXT replies until a RESULT|FAIL
-                    const msg = new DwarfMessage(id, msgData)
-                    switch (msg.id) {
-                        case RPC.REPLY.TEXT:
+            if (id === RPC.REPLY.FAIL) {
+                buf[0] = buf[0].slice(6) // split_to 6
+                // FAIL means "size" is really the errno
+                const msgData = new Uint8Array(size.buffer)
+                const msg = new DwarfMessage(id, msgData)
+                return [msg, ...this._textMessages.splice(0)]
+            } else if (id === RPC.REPLY.TEXT || id === RPC.REPLY.RESULT) {
+                if (size >= 0 && size <= 67108864 /* 2**26 */) {
+                    if (buf[0].length >= 6 + size) {
+                        const msgData = buf[0].slice(6, 6 + size)
+                        // split_to 6 + size:
+                        buf[0] = buf[0].slice(6 + size)
+
+                        // collect TEXT replies until a RESULT|FAIL
+                        const msg = new DwarfMessage(id, msgData)
+                        if (id === RPC.REPLY.TEXT) {
                             this._textMessages.push(msg)
-                            break
-                        case RPC.REPLY.RESULT:
-                            // fallthrough
-                        case RPC.REPLY.FAIL:
+                        } else { // RESULT
                             return [msg, ...this._textMessages.splice(0)]
-                        default:
-                            throw new FramedCodecError('Illegal reply ID: ' + msg.id)
-                    }
+                        }
+                    } // else not ready
+                } else {
+                    throw new CodecError('Invalid size in RFR packet.')
                 }
             } else {
-                throw new CodecError('Invalid size in RFR packet.')
+                throw new FramedCodecError('Illegal reply ID: ' + msg.id)
             }
         }
         return null
