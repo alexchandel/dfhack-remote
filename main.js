@@ -63,6 +63,7 @@ class Codec {
  * Wraps a WebSocket with write/async-read.
  * `Out` cannot subclass `Error`:
  * @template In, Out
+ * @struct
  */
 class CodecRunner {
     constructor (/** @type {!Codec<In, Out>} */ codec) {
@@ -243,6 +244,7 @@ function DwarfMessage (id, data) {
  * This codec chunks packets & RFR messages together into complete replies to a call.
  * However, it does more (perhaps too much?).  It parses the replies into objects.
  * @extends {Codec<!DwarfMessage, !Array<!DwarfMessage>>}
+ * @struct
  */
 class DwarfWireCodec extends Codec {
     /*
@@ -363,13 +365,16 @@ class DwarfClient {
         this.framed = new CodecRunner(new DwarfWireCodec())
     }
 
+    /**
+     * Destroy socket.
+     */
     destroy () {
         this.framed.close()
     }
 
     /**
      * GetVersion, dfproto.EmptyMessage, dfproto.StringMessage
-     * @returns {rfr.CoreBindReply
+     * @returns {rfr.CoreBindReply}
      */
     async BindMethod (method, inputMsg, outputMsg, plugin) {
         const req = new cp.CoreBindRequest()
