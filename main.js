@@ -434,9 +434,9 @@ const FUNC_DEFS = [
         MiscMoveCommand:    ['MiscMoveParams',  'EmptyMessage'],
     }],
     ['isoworldremote', 'isoworldremote', {
-        GetEmbarkTile: ['TileReques', 'EmbarkTile'],
-        GetEmbarkInfo: ['MapReques', 'MapReply'],
-        GetRawNames: ['MapReques', 'RawNames']
+        GetEmbarkTile: ['TileRequest', 'EmbarkTile'],
+        GetEmbarkInfo: ['MapRequest', 'MapReply'],
+        GetRawNames: ['MapRequest', 'RawNames']
     }]
 ]
 /* eslint-enable key-spacing, no-multi-spaces */
