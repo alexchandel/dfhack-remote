@@ -328,9 +328,11 @@ class DwarfClient {
     }
 }
 
-export function main () {
+function main () {
     const df = new DwarfClient()
     df.GetBlockList(0, 0, 0, 1, 1, 1)
         .then(result => console.log(result))
         .catch(error => console.error(error))
 }
+
+window.main = main
