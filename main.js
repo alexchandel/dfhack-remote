@@ -56,13 +56,17 @@ class Codec {
 
 /**
  * Wraps a WebSocket with write/async-read
+ * @template In, Out
  */
 class CodecRunner {
-    constructor (/** @type {!Codec} */ codec) {
+    constructor (/** @type {!Codec<In, Out>} */ codec) {
         this.codec = codec
         this.sock = new window.WebSocket('ws://[::1]:8080/')
-        /** @type {!Array< !Array<function(?): void> >} */
+        /** @type {!Array<Uint8Array>} */
+        this._queuedWrites = []
+        /** @type {!Array< [function(?): void, function(?): void] >} */
         this.callbackQueue = []
+        /** @type {!Array<Out>} */
         this.unreadMessages = []
 
         const self = this
@@ -71,6 +75,11 @@ class CodecRunner {
             if (init != null) {
                 self.sock.send(init)
             }
+        }
+        this.sock.onerror = function (e) {
+            console.error('CodecRunner WebSocket error:', e)
+            self._queuedWrites.splice(0)
+            self.unreadMessages.splice(0)
         }
         this.sock.onmessage = function (e) {
             // FIXME is .text().then() always safe?
@@ -119,14 +128,19 @@ class CodecRunner {
         }
     }
 
-    write (/** @type {Uint8Array} */ src) {
-        this.sock.send(this.codec.encode(src))
+    write (/** @type {!In} */ src) {
+        if (this.sock.readyState === WebSocket.CONNECTING) {
+            // FIXME: race condition?
+            this._queuedWrites.push(this.codec.encode(src))
+        } else {
+            this.sock.send(this.codec.encode(src))
+        }
     }
 
     /**
      * Coalesces 1+ WebSocket packets into one response, based on a Codec,
      * and returns that.
-     * @returns {!Promise}
+     * @returns {!Promise<Out>}
      */
     async read () {
         if (this.unreadMessages.length) {
@@ -145,10 +159,10 @@ class CodecRunner {
 
     /**
      * Convenience method to write & read a response.
-     * @param {!Uint8Array} src
-     * @returns {!Promise}
+     * @param {!In} src
+     * @returns {!Promise<Out>}
      */
-    async writeRead (/** @type {Uint8Array} */ src) {
+    async writeRead (src) {
         this.write(src)
         return this.read()
     }
@@ -183,8 +197,8 @@ const CR = {
 }
 
 /**
- * @constructor
  * @struct
+ * @constructor
  * @param {number} id
  * @param {!Uint8Array} data
  */
@@ -323,7 +337,7 @@ class DwarfClient {
         req.setMaxX(maxX)
         req.setMaxY(maxY)
         req.setMaxZ(maxZ)
-        const msgs = await this.framed.writeRead(DwarfMessage(17, req.serializeBinary()))
+        const msgs = await this.framed.writeRead(new DwarfMessage(17, req.serializeBinary()))
         return req.BlockList.deserializeBinary(msgs[0].data)
     }
 }

@@ -42,6 +42,6 @@ to forward browser requests to RFR.
 RFR listens on `127.0.0.1` on TCP port `5000` by default.
 To wrap that with WebSockets on TCP port `8080`, for example, run:
 
-```
+```sh
 websockify 127.0.0.1:8080 127.0.0.1:5000
 ```
