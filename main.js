@@ -237,7 +237,7 @@ class DwarfWireCodec extends Codec {
      *                       https://github.com/DFHack/dfhack/blob/develop/library/RemoteTools.cpp
      *
      * RPCHandshakeHeader = { magic: [u8; 8], version: i32 == 1 }
-     * RPCMessageHeader = { id: i16, size: i32 }, size <= 64MiB
+     * RPCMessageHeader = { id: i16, (PACK: u16 = 0,) size: i32 }, size <= 64MiB
      * RPCMessage = { header: RPCMessageHeader, body: [u8; header.size] }
      *      RPCReplyResult  = RPCMessage { { RPC.REPLY.RESULT, sizeof(body) }, body }
      *      RPCReplyFail    = RPCMessage { { RPC.REPLY.FAIL, errno }, }
@@ -270,10 +270,10 @@ class DwarfWireCodec extends Codec {
     encode (input) {
         const size = new Uint8Array((new Int32Array([input.data.length])).buffer)
         const id = new Uint8Array((new Int16Array([input.id])).buffer)
-        const buf = new Uint8Array(6 + input.data.length)
+        const buf = new Uint8Array(8 + input.data.length)
         buf.set(id, 0)
-        buf.set(size, 2)
-        buf.set(input.data, 6)
+        buf.set(size, 4)
+        buf.set(input.data, 8)
         return buf
     }
 
@@ -300,23 +300,23 @@ class DwarfWireCodec extends Codec {
             }
         }
         // this.shookHands ASSUMED true now
-        if (buf[0].length >= 6) {
+        if (buf[0].length >= 8) {
             // FIXME slow
-            const id = (new Int16Array(buf[0].slice(0, 2)))[0]
-            const size = (new Int32Array(buf[0].slice(2, 6)))[0]
+            const id = (new Int16Array(buf[0].slice(0, 2).buffer))[0]
+            const size = (new Int32Array(buf[0].slice(4, 8).buffer))[0]
 
             if (id === RPC.REPLY.FAIL) {
-                buf[0] = buf[0].slice(6) // split_to 6
+                buf[0] = buf[0].slice(8) // split_to 8
                 // FAIL means "size" is really the errno
                 const msgData = new Uint8Array(size.buffer)
                 const msg = new DwarfMessage(id, msgData)
                 return [msg, ...this._textMessages.splice(0)]
             } else if (id === RPC.REPLY.TEXT || id === RPC.REPLY.RESULT) {
                 if (size >= 0 && size <= 67108864 /* 2**26 */) {
-                    if (buf[0].length >= 6 + size) {
-                        const msgData = buf[0].slice(6, 6 + size)
-                        // split_to 6 + size:
-                        buf[0] = buf[0].slice(6 + size)
+                    if (buf[0].length >= 8 + size) {
+                        const msgData = buf[0].slice(8, 8 + size)
+                        // split_to 8 + size:
+                        buf[0] = buf[0].slice(8 + size)
 
                         // collect TEXT replies until a RESULT|FAIL
                         const msg = new DwarfMessage(id, msgData)
