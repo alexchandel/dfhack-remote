@@ -271,8 +271,8 @@ class DwarfWireCodec extends Codec {
         const size = new Int32Array([input.data.length])
         const id = new Int16Array([input.id])
         const buf = new Uint8Array(6 + input.data.length)
-        buf.set(id.buffer, 0)
-        buf.set(size.buffer, 2)
+        buf.set(id, 0)
+        buf.set(size, 2)
         buf.set(input.data, 6)
         return buf
     }
@@ -302,8 +302,8 @@ class DwarfWireCodec extends Codec {
         // this.shookHands ASSUMED true now
         if (buf[0].length >= 6) {
             // FIXME slow
-            const id = (new Int16Array(buf[0].buffer.slice(0, 2)))[0]
-            const size = (new Int32Array(buf[0].buffer.slice(2, 4)))[0]
+            const id = (new Int16Array(buf[0].slice(0, 2)))[0]
+            const size = (new Int32Array(buf[0].slice(2, 6)))[0]
 
             if (id === RPC.REPLY.FAIL) {
                 buf[0] = buf[0].slice(6) // split_to 6
