@@ -66,6 +66,7 @@ class CodecRunner {
     constructor (/** @type {!Codec<In, Out>} */ codec) {
         this.codec = codec
         this.sock = new window.WebSocket('ws://127.0.0.1:8080/')
+        this.sock.binaryType = 'arraybuffer'
         /** @type {!Array<Uint8Array>} */
         this._queuedWrites = []
         /** @type {!Array< [function(?): void, function(?): void] >} */
@@ -87,43 +88,42 @@ class CodecRunner {
             self.unreadMessages.splice(0)
         }
         this.sock.onclose = function (e) {
-            console.error('CodecRunner WebSocket: close')
+            console.info('CodecRunner WebSocket: close:', e)
         }
         this.sock.onmessage = function (e) {
-            // FIXME is .text().then() always safe?
-            e.data.text().then(text => {
-                /** @type {[!Uint8Array]} */
-                const buf = [text]
-                let prevLen
-                do {
-                    prevLen = buf[0].length
-                    let maybeItem
-                    try {
-                        maybeItem = self.codec.decode(buf)
-                    } catch (e) {
-                        if (e instanceof FramedCodecError) {
-                            // FramedCodecError is recoverable
-                            const callback = self.callbackQueue.shift()
-                            if (callback !== undefined) {
-                                callback[1](e)
-                            }
-                        } else {
-                            self.sock.close()
-                            // socket dead, send error to all waiting callbacks:
-                            const cbs = self.callbackQueue.splice(0, self.callbackQueue.length)
-                            for (const callback of cbs) {
-                                callback[1](e)
-                            }
+            // NOTE: in Node, it's e.data.text().then(text => ...)
+            const text = new Uint8Array(e.data)
+            /** @type {[!Uint8Array]} */
+            const buf = [text]
+            let prevLen
+            do {
+                prevLen = buf[0].length
+                let maybeItem
+                try {
+                    maybeItem = self.codec.decode(buf)
+                } catch (e) {
+                    if (e instanceof FramedCodecError) {
+                        // FramedCodecError is recoverable
+                        const callback = self.callbackQueue.shift()
+                        if (callback !== undefined) {
+                            callback[1](e)
+                        }
+                    } else {
+                        self.sock.close()
+                        // socket dead, send error to all waiting callbacks:
+                        const cbs = self.callbackQueue.splice(0, self.callbackQueue.length)
+                        for (const callback of cbs) {
+                            callback[1](e)
                         }
                     }
+                }
 
-                    // NEVER set if an exception was thrown
-                    if (maybeItem != null) {
-                        // pass DF message
-                        self._popReply(maybeItem)
-                    } // else, have not received enough data to decode
-                } while (prevLen > buf[0].length) // TODO should use maybeItem != null?
-            })
+                // NEVER set if an exception was thrown
+                if (maybeItem != null) {
+                    // pass DF message
+                    self._popReply(maybeItem)
+                } // else, have not received enough data to decode
+            } while (prevLen > buf[0].length) // TODO should use maybeItem != null?
         }
     }
 
