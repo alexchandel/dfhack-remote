@@ -287,7 +287,7 @@ class DwarfWireCodec extends Codec {
     decode (buf) {
         if (!this.shookHands) {
             if (buf[0].length >= 12) {
-                if (arrayEqual(buf[0].slice(0, 8), RESPONSE_MAGIC_HDR)) {
+                if (arrayEqual(buf[0].slice(0, 8), RESPONSE_MAGIC_HDR.slice(0, 8))) {
                     console.log('Shook hands!')
                     this.shookHands = true
                     // split_to 12:
