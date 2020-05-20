@@ -140,8 +140,10 @@ class CodecRunner {
         if (this.sock.readyState === WebSocket.CONNECTING) {
             // FIXME: race condition?
             this._queuedWrites.push(this.codec.encode(src))
-        } else {
+        } else if (this.sock.readyState === WebSocket.OPEN) {
             this.sock.send(this.codec.encode(src))
+        } else {
+            throw CodecError(`Cannot write to socket in ${this.sock.readyState}`)
         }
     }
 
@@ -179,8 +181,11 @@ class CodecRunner {
         const close = this.codec.close()
         if (close != null) {
             this.sock.send(close)
+            // give DF socket 100ms to close nicely
+            window.setTimeout(() => this.sock.close(), 100)
+        } else {
+            this.sock.close()
         }
-        this.sock.close()
     }
 }
 
