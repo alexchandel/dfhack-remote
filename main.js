@@ -362,8 +362,9 @@ class DwarfWireCodec extends Codec {
 }
 
 /* eslint-disable key-spacing, no-multi-spaces */
-const FUNC_DEFS = {
-    dfproto: {
+const FUNC_DEFS = [
+    // plugin, namespace for new protobuf types, { methods }
+    [null, 'dfproto', {
         BindMethod:     ['CoreBindRequest', 'CoreBindReply'],
         RunCommand:     ['CoreRunCommandRequest',    'EmptyMessage'],
         CoreSuspend:    ['EmptyMessage',    'IntMessage'],
@@ -378,13 +379,13 @@ const FUNC_DEFS = {
         ListUnits:      ['ListUnitsIn',     'ListUnitsOut'],
         ListSquads:     ['ListSquadsIn',    'ListSquadsOut'],
         SetUnitLabors:  ['SetUnitLaborsIn', 'EmptyMessage'],
-        // Plugin: rename
+    }],
+    ['rename', 'dfproto', {
         RenameSquad:    ['RenameSquadIn',  'EmptyMessage'],
         RenameUnit:     ['RenameUnitIn',   'EmptyMessage'],
         RenameBuilding: ['RenameBuildingIn',    'EmptyMessage']
-    },
-    // Plugin: RemoteFortressReader
-    RemoteFortressReader: {
+    }],
+    ['RemoteFortressReader', 'RemoteFortressReader', {
         GetMaterialList:    ['EmptyMessage',    'MaterialList'],
         GetGrowthList:      ['EmptyMessage',    'MaterialList'],
         GetBlockList:       ['BlockRequest',    'BlockList'],
@@ -414,20 +415,22 @@ const FUNC_DEFS = {
         GetPauseState:      ['EmptyMessage',    'SingleBool'],
         GetVersionInfo:     ['EmptyMessage',    'VersionInfo'],
         GetReports:         ['EmptyMessage',    'Status'],
+
+        GetLanguage:        ['EmptyMessage',    'Language']
+    }],
+    ['RemoteFortressReader', 'AdventureControl', {
         MoveCommand:        ['MoveCommandParams',   'EmptyMessage'],
         JumpCommand:        ['MoveCommandParams',   'EmptyMessage'],
         MenuQuery:          ['EmptyMessage',    'MenuContents'],
         MovementSelectCommand:  ['IntMessage',  'EmptyMessage'],
         MiscMoveCommand:    ['MiscMoveParams',  'EmptyMessage'],
-        GetLanguage:        ['EmptyMessage',    'Language']
-    },
-    // Plugin: isoworldremote
-    isoworldremote: {
+    }],
+    ['isoworldremote', 'isoworldremote', {
         GetEmbarkTile: ['TileReques', 'EmbarkTile'],
         GetEmbarkInfo: ['MapReques', 'MapReply'],
         GetRawNames: ['MapReques', 'RawNames']
-    }
-}
+    }]
+]
 /* eslint-enable key-spacing, no-multi-spaces */
 
 /**
@@ -443,7 +446,7 @@ class DwarfClient {
     }
 
     async resolveMethods () {
-        for (const [ns, methods] of Object.entries(FUNC_DEFS)) {
+        for (const [plugin, ns, methods] of FUNC_DEFS) {
             for (const [name, [input, output]] of Object.entries(methods)) {
                 if (!this._typeNames.hasOwnProperty(input)) {
                     this._typeNames[input] = `${ns}.${input}`
@@ -452,9 +455,9 @@ class DwarfClient {
                     this._typeNames[output] = `${ns}.${output}`
                 }
                 const id = await this.BindMethod(
-                    name, this._typeNames[input], this._typeNames[output]
+                    name, this._typeNames[input], this._typeNames[output], plugin
                 )
-                this._methodIds[name] = id.getAssignedId()
+                this._methodIds[name] = id == null ? id : id.getAssignedId()
             }
         }
         return true
@@ -476,12 +479,17 @@ class DwarfClient {
         req.setMethod(method)
         req.setInputMsg(inputMsg)
         req.setOutputMsg(outputMsg)
+        if (plugin != null) {
+            req.setPlugin(plugin)
+        }
         const msgs = await this.framed.writeRead(new DwarfMessage(0, req.serializeBinary()))
         if (msgs[0].id === RPC.REPLY.FAIL) {
             // FIXME should throw error
             console.error(`Failed to bind ${method}:`, msgs[0])
+            return null
+        } else {
+            return cp.CoreBindReply.deserializeBinary(msgs[0].data)
         }
-        return cp.CoreBindReply.deserializeBinary(msgs[0].data)
     }
 
     /**
@@ -510,4 +518,5 @@ function main () {
     return df
 }
 
+window.FUNC_DEFS = FUNC_DEFS
 window.main = main
