@@ -78,7 +78,7 @@ class CodecRunner {
 
         const self = this
         this.sock.onopen = function (e) {
-            console.log('CodecRunner WebSocket: open')
+            console.info('CodecRunner WebSocket: open')
             const init = self.codec.open()
             if (init != null) {
                 self.sock.send(init)
@@ -304,7 +304,7 @@ class DwarfWireCodec extends Codec {
         if (!this.shookHands) {
             if (buf[0].length >= 12) {
                 if (arrayEqual(buf[0].slice(0, 8), RESPONSE_MAGIC_HDR.slice(0, 8))) {
-                    console.log('Shook hands!')
+                    console.info('DwarfWireCodec shook hands!')
                     this.shookHands = true
                     // split_to 12:
                     buf[0] = buf[0].slice(12)
@@ -377,7 +377,8 @@ class DwarfClient {
         req.setInputMsg(inputMsg)
         req.setOutputMsg(outputMsg)
         const msgs = await this.framed.writeRead(new DwarfMessage(0, req.serializeBinary()))
-        return req.CoreBindReply.deserializeBinary(msgs[0].data)
+        // FIXME check for error (msgs[0].id == FAIL == -2)
+        return cp.CoreBindReply.deserializeBinary(msgs[0].data)
     }
 
     /**
@@ -392,7 +393,7 @@ class DwarfClient {
         req.setMaxY(maxY)
         req.setMaxZ(maxZ)
         const msgs = await this.framed.writeRead(new DwarfMessage(17, req.serializeBinary()))
-        return req.BlockList.deserializeBinary(msgs[0].data)
+        return rfr.BlockList.deserializeBinary(msgs[0].data)
     }
 }
 
