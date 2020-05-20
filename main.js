@@ -268,8 +268,8 @@ class DwarfWireCodec extends Codec {
      * @returns {!Uint8Array}
      */
     encode (input) {
-        const size = new Int32Array([input.data.length])
-        const id = new Int16Array([input.id])
+        const size = new Uint8Array((new Int32Array([input.data.length])).buffer)
+        const id = new Uint8Array((new Int16Array([input.id])).buffer)
         const buf = new Uint8Array(6 + input.data.length)
         buf.set(id, 0)
         buf.set(size, 2)
