@@ -533,7 +533,7 @@ class DwarfClient {
         const msgs = await this.framed.writeRead(
             new DwarfMessage(this.getMethodId('GetBlockList'), req.serializeBinary())
         )
-        return rfr.BlockList.deserializeBinary(msgs[0].data)
+        return rfr.BlockList.deserializeBinary(msgs[0].data).toObject()
     }
 
     /**
@@ -544,7 +544,7 @@ class DwarfClient {
         const msgs = await this.framed.writeRead(
             new DwarfMessage(this.getMethodId('GetMapInfo'), req.serializeBinary())
         )
-        return rfr.MapInfo.deserializeBinary(msgs[0].data)
+        return rfr.MapInfo.deserializeBinary(msgs[0].data).toObject()
     }
 }
 
