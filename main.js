@@ -53,7 +53,7 @@ class Codec {
      */
     decode (buf) {}
     /**
-     * @returns {!Uint8Array}
+     * @returns {Uint8Array}
      */
     close () {}
 }
@@ -75,6 +75,7 @@ class CodecRunner {
 
         const self = this
         this.sock.onopen = function (e) {
+            console.log('CodecRunner WebSocket: open')
             const init = self.codec.open()
             if (init != null) {
                 self.sock.send(init)
@@ -84,6 +85,9 @@ class CodecRunner {
             console.error('CodecRunner WebSocket error:', e)
             self._queuedWrites.splice(0)
             self.unreadMessages.splice(0)
+        }
+        this.sock.onclose = function (e) {
+            console.error('CodecRunner WebSocket: close')
         }
         this.sock.onmessage = function (e) {
             // FIXME is .text().then() always safe?
