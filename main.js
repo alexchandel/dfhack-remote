@@ -434,6 +434,11 @@ const FUNC_DEFS = [
 /* eslint-enable key-spacing, no-multi-spaces */
 
 /**
+ * Thrown if the method is missing.
+ */
+class DFHackNotBound extends Error { }
+
+/**
  * @struct
  */
 class DwarfClient {
@@ -471,6 +476,17 @@ class DwarfClient {
     }
 
     /**
+     * @param {string} name
+     * @returns {number}
+     * @throws {DFHackNotBound}
+     */
+    getMethodId (name) {
+        const id = this._methodIds[name]
+        if (id == null) throw new DFHackNotBound(name)
+        else return id
+    }
+
+    /**
      * GetVersion, dfproto.EmptyMessage, dfproto.StringMessage
      * @returns {rfr.CoreBindReply}
      */
@@ -503,8 +519,21 @@ class DwarfClient {
         req.setMaxX(maxX)
         req.setMaxY(maxY)
         req.setMaxZ(maxZ)
-        const msgs = await this.framed.writeRead(new DwarfMessage(17, req.serializeBinary()))
+        const msgs = await this.framed.writeRead(
+            new DwarfMessage(this.getMethodId('GetBlockList'), req.serializeBinary())
+        )
         return rfr.BlockList.deserializeBinary(msgs[0].data)
+    }
+
+    /**
+     * @returns {rfr.MapInfo}
+     */
+    async GetMapInfo () {
+        const req = new cp.EmptyMessage()
+        const msgs = await this.framed.writeRead(
+            new DwarfMessage(this.getMethodId('GetMapInfo'), req.serializeBinary())
+        )
+        return rfr.MapInfo.deserializeBinary(msgs[0].data)
     }
 }
 
