@@ -60,7 +60,8 @@ class Codec {
 }
 
 /**
- * Wraps a WebSocket with write/async-read
+ * Wraps a WebSocket with write/async-read.
+ * `Out` cannot subclass `Error`:
  * @template In, Out
  */
 class CodecRunner {
@@ -70,9 +71,9 @@ class CodecRunner {
         this.sock.binaryType = 'arraybuffer'
         /** @type {!Array<Uint8Array>} */
         this._queuedWrites = []
-        /** @type {!Array< [function(?): void, function(?): void] >} */
+        /** @type {!Array< [function(Out): void, function(?): void] >} */
         this.callbackQueue = []
-        /** @type {!Array<Out>} */
+        /** @type {!Array<Out|Error>} */
         this.unreadMessages = []
 
         const self = this
@@ -105,10 +106,7 @@ class CodecRunner {
                 } catch (e) {
                     if (e instanceof FramedCodecError) {
                         // FramedCodecError is recoverable
-                        const callback = self.callbackQueue.shift()
-                        if (callback !== undefined) {
-                            callback[1](e)
-                        }
+                        self._popReject(e)
                     } else {
                         self.sock.close()
                         // socket dead, send error to all waiting callbacks:
@@ -119,7 +117,7 @@ class CodecRunner {
                     }
                 }
 
-                // NEVER set if an exception was thrown
+                // NEVER non-null if an exception was thrown
                 if (maybeItem != null) {
                     // pass DF message
                     self._popReply(maybeItem)
@@ -128,7 +126,7 @@ class CodecRunner {
         }
     }
 
-    _popReply (/** @type {!Object} */ reply) {
+    _popReply (/** @type {!Out} */ reply) {
         const callback = this.callbackQueue.shift()
         if (callback !== undefined) {
             callback[0](reply)
@@ -137,9 +135,18 @@ class CodecRunner {
         }
     }
 
+    _popReject (reason) {
+        const callback = this.callbackQueue.shift()
+        if (callback !== undefined) {
+            callback[1](reason)
+        } else {
+            this.unreadMessages.push(reason)
+        }
+    }
+
     write (/** @type {!In} */ src) {
         if (this.sock.readyState === WebSocket.CONNECTING) {
-            // FIXME: race condition?
+            // NOTE: race condition?  Can it OPEN before this pushes?
             this._queuedWrites.push(this.codec.encode(src))
         } else if (this.sock.readyState === WebSocket.OPEN) {
             this.sock.send(this.codec.encode(src))
@@ -157,7 +164,8 @@ class CodecRunner {
         if (this.unreadMessages.length) {
             // drain this.unreadMessages if one is queued up
             console.warn('Response arrived before request: %s', this.unreadMessages[0])
-            return Promise.resolve(this.unreadMessages.shift())
+            const msg = this.unreadMessages.shift()
+            return msg instanceof Error ? Promise.reject(msg) : Promise.resolve(msg)
         } else {
             const callbackQueue = this.callbackQueue
             // resolve is invoked if codec yields a successful item.
@@ -194,6 +202,7 @@ const REQUEST_MAGIC_HDR = Uint8Array.from([68, 70, 72, 97, 99, 107, 63, 10, 1, 0
 const RESPONSE_MAGIC_HDR = Uint8Array.from([68, 70, 72, 97, 99, 107, 33, 10, 1, 0, 0, 0]) // 'DFHack!\n' 1i32
 /**
  * Possible non-function IDs to be found in RPCMessage.header.id
+ * @enum
  */
 const RPC = {
     REPLY: {
@@ -207,6 +216,7 @@ const RPC = {
 }
 /**
  * Possible error codes to be found in RPCReplyFail.header.size:
+ * @enum
  */
 const CR = {
     LINK_FAILURE: -3,    // RPC call failed due to I/O or protocol error
@@ -391,6 +401,8 @@ function main () {
     // df.GetBlockList(0, 0, 0, 1, 1, 1)
     //     .then(result => console.log(result))
     //     .catch(error => console.error(error))
+    // df.BindMethod('GetVersion', 'dfproto.EmptyMessage', 'dfproto.StringMessage')
+    //     .then(console.log, console.error)
     return df
 }
 
