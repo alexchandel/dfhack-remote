@@ -45,3 +45,8 @@ To wrap that with WebSockets on TCP port `8080`, for example, run:
 ```sh
 websockify 127.0.0.1:8080 127.0.0.1:5000
 ```
+
+## TODO
+
+* Replace `google-protobuf` with `protobufjs`.  This is faster,
+eliminates `protoc`, and eliminates some Node.js dependencies.

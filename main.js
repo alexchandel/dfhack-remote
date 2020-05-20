@@ -52,6 +52,10 @@ class Codec {
      * @returns {?Out}
      */
     decode (buf) {}
+    /**
+     * @returns {!Uint8Array}
+     */
+    close () {}
 }
 
 /**
@@ -61,7 +65,7 @@ class Codec {
 class CodecRunner {
     constructor (/** @type {!Codec<In, Out>} */ codec) {
         this.codec = codec
-        this.sock = new window.WebSocket('ws://[::1]:8080/')
+        this.sock = new window.WebSocket('ws://127.0.0.1:8080/')
         /** @type {!Array<Uint8Array>} */
         this._queuedWrites = []
         /** @type {!Array< [function(?): void, function(?): void] >} */
@@ -165,6 +169,14 @@ class CodecRunner {
     async writeRead (src) {
         this.write(src)
         return this.read()
+    }
+
+    close () {
+        const close = this.codec.close()
+        if (close != null) {
+            this.sock.send(close)
+        }
+        this.sock.close()
     }
 }
 
@@ -272,6 +284,7 @@ class DwarfWireCodec extends Codec {
         if (!this.shookHands) {
             if (buf[0].length >= 12) {
                 if (arrayEqual(buf[0].slice(0, 8), RESPONSE_MAGIC_HDR)) {
+                    console.log('Shook hands!')
                     this.shookHands = true
                     // split_to 12:
                     buf[0] = buf[0].slice(12)
@@ -319,11 +332,19 @@ class DwarfWireCodec extends Codec {
         return null
     }
     // decode_eof
+
+    close () {
+        return this.encode(new DwarfMessage(RPC.REQUEST.QUIT, new Uint8Array()))
+    }
 }
 
 class DwarfClient {
     constructor () {
         this.framed = new CodecRunner(new DwarfWireCodec())
+    }
+
+    destroy () {
+        this.framed.close()
     }
 
     /**
@@ -344,9 +365,10 @@ class DwarfClient {
 
 function main () {
     const df = new DwarfClient()
-    df.GetBlockList(0, 0, 0, 1, 1, 1)
-        .then(result => console.log(result))
-        .catch(error => console.error(error))
+    // df.GetBlockList(0, 0, 0, 1, 1, 1)
+    //     .then(result => console.log(result))
+    //     .catch(error => console.error(error))
+    return df
 }
 
 window.main = main
