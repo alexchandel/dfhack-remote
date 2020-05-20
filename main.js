@@ -67,7 +67,11 @@ class Codec {
  * @struct
  */
 class CodecRunner {
-    constructor (/** @type {!Codec<In, Out>} */ codec) {
+    /**
+     * @param {!Codec<In, Out>} codec
+     * @param {function(CodecRunner): void} onopen
+     */
+    constructor (codec, onopen) {
         this.codec = codec
         this.sock = new window.WebSocket('ws://127.0.0.1:8080/')
         this.sock.binaryType = 'arraybuffer'
@@ -84,6 +88,10 @@ class CodecRunner {
             const init = self.codec.open()
             if (init != null) {
                 self.sock.send(init)
+            }
+            // FIXME should wait for Codec to establish opening
+            if (onopen != null) {
+                onopen(self)
             }
         }
         this.sock.onerror = function (e) {
@@ -443,7 +451,10 @@ class DFHackNotBound extends Error { }
  */
 class DwarfClient {
     constructor () {
-        this.framed = new CodecRunner(new DwarfWireCodec())
+        this.framed = new CodecRunner(
+            new DwarfWireCodec(),
+            () => this.resolveMethods()
+        )
         /** @dict */
         this._methodIds = {}
         /** @dict */
