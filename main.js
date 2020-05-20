@@ -1,6 +1,7 @@
 /* eslint indent: ["error", 4, {'SwitchCase': 1}] */
 const dfc = require('./build/DwarfControl_pb.js')
 const rfr = require('./build/RemoteFortressReader_pb.js')
+const cp = require('./build/CoreProtocol_pb.js')
 
 /**
  * @param {Array} a
@@ -354,6 +355,19 @@ class DwarfClient {
 
     destroy () {
         this.framed.close()
+    }
+
+    /**
+     * GetVersion, dfproto.EmptyMessage, dfproto.StringMessage
+     * @returns {rfr.CoreBindReply
+     */
+    async BindMethod (method, inputMsg, outputMsg, plugin) {
+        const req = new cp.CoreBindRequest()
+        req.setMethod(method)
+        req.setInputMsg(inputMsg)
+        req.setOutputMsg(outputMsg)
+        const msgs = await this.framed.writeRead(new DwarfMessage(0, req.serializeBinary()))
+        return req.CoreBindReply.deserializeBinary(msgs[0].data)
     }
 
     /**
