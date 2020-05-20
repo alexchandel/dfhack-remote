@@ -1,4 +1,5 @@
 /* eslint indent: ["error", 4, {'SwitchCase': 1}] */
+/* eslint-disable no-prototype-builtins */
 const dfc = require('./build/DwarfControl_pb.js')
 const rfr = require('./build/RemoteFortressReader_pb.js')
 const cp = require('./build/CoreProtocol_pb.js')
@@ -360,9 +361,103 @@ class DwarfWireCodec extends Codec {
     }
 }
 
+/* eslint-disable key-spacing, no-multi-spaces */
+const FUNC_DEFS = {
+    dfproto: {
+        BindMethod:     ['CoreBindRequest', 'CoreBindReply'],
+        RunCommand:     ['CoreRunCommandRequest',    'EmptyMessage'],
+        CoreSuspend:    ['EmptyMessage',    'IntMessage'],
+        CoreResume:     ['EmptyMessage',    'IntMessage'],
+        RunLua:         ['CoreRunLuaRequest',    'StringListMessage'],
+        GetVersion:     ['EmptyMessage',    'StringMessage'],
+        GetDFVersion:   ['EmptyMessage',    'StringMessage'],
+        GetWorldInfo:   ['EmptyMessage',    'GetWorldInfoOut'],
+        ListEnums:      ['EmptyMessage',    'ListEnumsOut'],
+        ListJobSkills:  ['EmptyMessage',    'ListJobSkillsOut'],
+        ListMaterials:  ['ListMaterialsIn', 'ListMaterialsOut'],
+        ListUnits:      ['ListUnitsIn',     'ListUnitsOut'],
+        ListSquads:     ['ListSquadsIn',    'ListSquadsOut'],
+        SetUnitLabors:  ['SetUnitLaborsIn', 'EmptyMessage'],
+        // Plugin: rename
+        RenameSquad:    ['RenameSquadIn',  'EmptyMessage'],
+        RenameUnit:     ['RenameUnitIn',   'EmptyMessage'],
+        RenameBuilding: ['RenameBuildingIn',    'EmptyMessage']
+    },
+    // Plugin: RemoteFortressReader
+    RemoteFortressReader: {
+        GetMaterialList:    ['EmptyMessage',    'MaterialList'],
+        GetGrowthList:      ['EmptyMessage',    'MaterialList'],
+        GetBlockList:       ['BlockRequest',    'BlockList'],
+        CheckHashes:        ['EmptyMessage',    'EmptyMessage'],
+        GetTiletypeList:    ['EmptyMessage',    'TiletypeList'],
+        GetPlantList:       ['BlockRequest',    'PlantList'],
+        GetUnitList:        ['EmptyMessage',    'UnitList'],
+        GetUnitListInside:  ['BlockRequest',    'UnitList'],
+        GetViewInfo:        ['EmptyMessage',    'ViewInfo'],
+        GetMapInfo:         ['EmptyMessage',    'MapInfo'],
+        ResetMapHashes:     ['EmptyMessage',    'EmptyMessage'],
+        GetItemList:        ['EmptyMessage',    'MaterialList'],
+        GetBuildingDefList: ['EmptyMessage',    'BuildingList'],
+        GetWorldMap:        ['EmptyMessage',    'WorldMap'],
+        GetWorldMapNew:     ['EmptyMessage',    'WorldMap'],
+        GetRegionMaps:      ['EmptyMessage',    'RegionMaps'],
+        GetRegionMapsNew:   ['EmptyMessage',    'RegionMaps'],
+        GetCreatureRaws:    ['EmptyMessage',    'CreatureRawList'],
+        GetPartialCreatureRaws: ['ListRequest', 'CreatureRawList'],
+        GetWorldMapCenter:  ['EmptyMessage',    'WorldMap'],
+        GetPlantRaws:       ['EmptyMessage',    'PlantRawList'],
+        GetPartialPlantRaws:    ['ListRequest', 'PlantRawList'],
+        CopyScreen:         ['EmptyMessage',    'ScreenCapture'],
+        PassKeyboardEvent:  ['KeyboardEvent',   'EmptyMessage'],
+        SendDigCommand:     ['DigCommand',      'EmptyMessage'],
+        SetPauseState:      ['SingleBool',      'EmptyMessage'],
+        GetPauseState:      ['EmptyMessage',    'SingleBool'],
+        GetVersionInfo:     ['EmptyMessage',    'VersionInfo'],
+        GetReports:         ['EmptyMessage',    'Status'],
+        MoveCommand:        ['MoveCommandParams',   'EmptyMessage'],
+        JumpCommand:        ['MoveCommandParams',   'EmptyMessage'],
+        MenuQuery:          ['EmptyMessage',    'MenuContents'],
+        MovementSelectCommand:  ['IntMessage',  'EmptyMessage'],
+        MiscMoveCommand:    ['MiscMoveParams',  'EmptyMessage'],
+        GetLanguage:        ['EmptyMessage',    'Language']
+    },
+    // Plugin: isoworldremote
+    isoworldremote: {
+        GetEmbarkTile: ['TileReques', 'EmbarkTile'],
+        GetEmbarkInfo: ['MapReques', 'MapReply'],
+        GetRawNames: ['MapReques', 'RawNames']
+    }
+}
+/* eslint-enable key-spacing, no-multi-spaces */
+
+/**
+ * @struct
+ */
 class DwarfClient {
     constructor () {
         this.framed = new CodecRunner(new DwarfWireCodec())
+        /** @dict */
+        this._methodIds = {}
+        /** @dict */
+        this._typeNames = {}
+    }
+
+    async resolveMethods () {
+        for (const [ns, methods] of Object.entries(FUNC_DEFS)) {
+            for (const [name, [input, output]] of Object.entries(methods)) {
+                if (!this._typeNames.hasOwnProperty(input)) {
+                    this._typeNames[input] = `${ns}.${input}`
+                }
+                if (!this._typeNames.hasOwnProperty(output)) {
+                    this._typeNames[output] = `${ns}.${output}`
+                }
+                const id = await this.BindMethod(
+                    name, this._typeNames[input], this._typeNames[output]
+                )
+                this._methodIds[name] = id.getAssignedId()
+            }
+        }
+        return true
     }
 
     /**
@@ -382,7 +477,10 @@ class DwarfClient {
         req.setInputMsg(inputMsg)
         req.setOutputMsg(outputMsg)
         const msgs = await this.framed.writeRead(new DwarfMessage(0, req.serializeBinary()))
-        // FIXME check for error (msgs[0].id == FAIL == -2)
+        if (msgs[0].id === RPC.REPLY.FAIL) {
+            // FIXME should throw error
+            console.error(`Failed to bind ${method}:`, msgs[0])
+        }
         return cp.CoreBindReply.deserializeBinary(msgs[0].data)
     }
 
