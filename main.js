@@ -522,7 +522,7 @@ class DwarfClient {
     /**
      * @returns {rfr.BlockList}
      */
-    async GetBlockList (minX, minY, minZ, maxX, maxY, maxZ) {
+    async GetBlockList (minX, minY, minZ, maxX, maxY, maxZ, blocksNeeded) {
         const req = new rfr.BlockRequest()
         req.setMinX(minX)
         req.setMinY(minY)
@@ -530,10 +530,29 @@ class DwarfClient {
         req.setMaxX(maxX)
         req.setMaxY(maxY)
         req.setMaxZ(maxZ)
+        if (blocksNeeded != null) req.setBlocksNeeded(blocksNeeded)
         const msgs = await this.framed.writeRead(
             new DwarfMessage(this.getMethodId('GetBlockList'), req.serializeBinary())
         )
         return rfr.BlockList.deserializeBinary(msgs[0].data).toObject()
+    }
+
+    /**
+     * @returns {rfr.UnitList}
+     */
+    async GetUnitListInside (minX, minY, minZ, maxX, maxY, maxZ, blocksNeeded) {
+        const req = new rfr.BlockRequest()
+        req.setMinX(minX)
+        req.setMinY(minY)
+        req.setMinZ(minZ)
+        req.setMaxX(maxX)
+        req.setMaxY(maxY)
+        req.setMaxZ(maxZ)
+        if (blocksNeeded != null) req.setBlocksNeeded(blocksNeeded)
+        const msgs = await this.framed.writeRead(
+            new DwarfMessage(this.getMethodId('GetUnitListInside'), req.serializeBinary())
+        )
+        return rfr.UnitList.deserializeBinary(msgs[0].data).toObject()
     }
 
     /**
@@ -550,11 +569,8 @@ class DwarfClient {
 
 function main () {
     const df = new DwarfClient()
-    // df.GetBlockList(0, 0, 0, 1, 1, 1)
-    //     .then(result => console.log(result))
-    //     .catch(error => console.error(error))
-    // df.BindMethod('GetVersion', 'dfproto.EmptyMessage', 'dfproto.StringMessage')
-    //     .then(console.log, console.error)
+    // await df.GetBlockList(1, 1, 50, 9, 9, 56)
+    // await df.GetUnitListInside(1, 1, 50, 9, 9, 56)
     return df
 }
 
