@@ -10,17 +10,17 @@ It will also provide a browser-based fortress viewer.
 ## Dependencies
 
 * [Node.js](https://nodejs.org/en/), for protobuf libraries
-* [protoc](https://github.com/protocolbuffers/protobuf), to compile protobuf files to JS
 * Python, to run `websockify` (see also experimental [websockify.js](https://github.com/novnc/websockify-js))
+* ~~[protoc](https://github.com/protocolbuffers/protobuf), to compile protobuf files to JS~~
 
 These are available on most package managers.  For example,
 
 ```sh
-brew install node python protobuf
+brew install node python
 ```
 
 ```sh
-choco install -y nodejs python protoc
+choco install -y nodejs python
 ```
 
 ## Browser bindings
@@ -45,8 +45,3 @@ To wrap that with WebSockets on TCP port `8080`, for example, run:
 ```sh
 websockify 127.0.0.1:8080 127.0.0.1:5000
 ```
-
-## TODO
-
-* Replace `google-protobuf` with `protobufjs`.  This is faster,
-eliminates `protoc`, and eliminates some Node.js dependencies.

@@ -1,5 +1,6 @@
 /* eslint indent: ["error", 4, {'SwitchCase': 1}] */
 /* eslint-disable no-prototype-builtins */
+/* window, WebSocket */
 
 const pjson = require('./build/proto.json')
 { // HACK: fix illegal messages from RFR
@@ -57,7 +58,7 @@ class Codec {
      * Decode a message from bytes.  Implementor MUST return `null` if no
      * complete reply available yet.  Implementor MUST delete bytes from
      * buf[0] that are consumed.
-     * @param {[!Uint8Array]} buf
+     * @param {{0: !Uint8Array}} buf
      * @returns {?Out}
      */
     decode (buf) {}
@@ -84,7 +85,7 @@ class CodecRunner {
         this.sock.binaryType = 'arraybuffer'
         /** @type {!Array<Uint8Array>} */
         this._queuedWrites = []
-        /** @type {!Array< [function(Out): void, function(?): void] >} */
+        /** @type {!Array< {0: function(Out): void, 1: function(?): void} >} */
         this._callbackQueue = []
         /** @type {!Array<Out|Error>} */
         this._unreadMessages = []
@@ -123,7 +124,7 @@ class CodecRunner {
             } else {
                 text = new Uint8Array(e.data)
             }
-            /** @type {[!Uint8Array]} */
+            /** @type {{0: !Uint8Array}} */
             const buf = [text]
             let prevLen
             do {
@@ -328,7 +329,7 @@ class DwarfWireCodec extends Codec {
      * Attempts to decode a frame from the provided buffer of bytes.
      * Returns Result<Option<Item>, Error>.
      * Rust invokes .split_to() on buffer, returning first half.
-     * @param {[!Uint8Array]} buf
+     * @param {{0: !Uint8Array}} buf
      * @returns {?Array<!DwarfMessage>}
      */
     decode (buf) {
@@ -544,7 +545,7 @@ class DwarfClient {
      * @param {number} methodId
      * @param {In} inputType
      * @param {Out} outputType
-     * @returns {function(In): Out)}
+     * @returns {function(In): Out}
      */
     _remoteMethodFactory (methodId, inputType, outputType) {
         return async function (input) {
