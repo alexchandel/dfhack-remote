@@ -1,8 +1,5 @@
 /* eslint indent: ["error", 4, {'SwitchCase': 1}] */
 /* eslint-disable no-prototype-builtins */
-// const dfc = require('./build/DwarfControl_pb.js')
-const rfr = require('./build/RemoteFortressReader_pb.js')
-const cp = require('./build/CoreProtocol_pb.js')
 
 const pjson = require('./build/proto.json')
 { // HACK: fix illegal messages from RFR
@@ -606,79 +603,6 @@ class DwarfClient {
         } else {
             return outputType.toObject(outputType.decode(msgs[0].data))
         }
-    }
-
-    /**
-     * GetVersion, dfproto.EmptyMessage, dfproto.StringMessage
-     * @param {string} method
-     * @param {string} inputMsg
-     * @param {string} outputMsg
-     * @param {?string=} plugin
-     * @returns {rfr.CoreBindReply}
-     */
-    async oldBindMethod (method, inputMsg, outputMsg, plugin) {
-        const req = new cp.CoreBindRequest()
-        req.setMethod(method)
-        req.setInputMsg(inputMsg)
-        req.setOutputMsg(outputMsg)
-        if (plugin != null) {
-            req.setPlugin(plugin)
-        }
-        const msgs = await this.framed.writeRead(new DwarfMessage(0, req.serializeBinary()))
-        if (msgs[0].id === RPC.REPLY.FAIL) {
-            // FIXME should throw error
-            console.error(`Failed to bind ${method}:`, msgs[0])
-            return null
-        } else {
-            return cp.CoreBindReply.deserializeBinary(msgs[0].data)
-        }
-    }
-
-    /**
-     * @returns {rfr.BlockList}
-     */
-    async oldGetBlockList (minX, minY, minZ, maxX, maxY, maxZ, blocksNeeded) {
-        const req = new rfr.BlockRequest()
-        req.setMinX(minX)
-        req.setMinY(minY)
-        req.setMinZ(minZ)
-        req.setMaxX(maxX)
-        req.setMaxY(maxY)
-        req.setMaxZ(maxZ)
-        if (blocksNeeded != null) req.setBlocksNeeded(blocksNeeded)
-        const msgs = await this.framed.writeRead(
-            new DwarfMessage(this.getMethodId('GetBlockList'), req.serializeBinary())
-        )
-        return rfr.BlockList.deserializeBinary(msgs[0].data).toObject()
-    }
-
-    /**
-     * @returns {rfr.UnitList}
-     */
-    async oldGetUnitListInside (minX, minY, minZ, maxX, maxY, maxZ, blocksNeeded) {
-        const req = new rfr.BlockRequest()
-        req.setMinX(minX)
-        req.setMinY(minY)
-        req.setMinZ(minZ)
-        req.setMaxX(maxX)
-        req.setMaxY(maxY)
-        req.setMaxZ(maxZ)
-        if (blocksNeeded != null) req.setBlocksNeeded(blocksNeeded)
-        const msgs = await this.framed.writeRead(
-            new DwarfMessage(this.getMethodId('GetUnitListInside'), req.serializeBinary())
-        )
-        return rfr.UnitList.deserializeBinary(msgs[0].data).toObject()
-    }
-
-    /**
-     * @returns {rfr.MapInfo}
-     */
-    async oldGetMapInfo () {
-        const req = new cp.EmptyMessage()
-        const msgs = await this.framed.writeRead(
-            new DwarfMessage(this.getMethodId('GetMapInfo'), req.serializeBinary())
-        )
-        return rfr.MapInfo.deserializeBinary(msgs[0].data).toObject()
     }
 }
 
