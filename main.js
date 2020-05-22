@@ -526,14 +526,14 @@ class DwarfClient {
                 const outputFqn = this._typeNames.get(outputShort)
 
                 const id = await this.BindMethod(name, inputFqn, outputFqn, plugin)
-                this._methodIds[name] = id == null ? id : id.getAssignedId()
+                this._methodIds[name] = id == null ? id : id['assignedId']
 
                 if (id != null && name !== 'BindMethod') {
                     const inputType = this._protoTypes.get(inputFqn)
                     const outputType = this._protoTypes.get(outputFqn)
                     this._remoteMethods.set(
                         name,
-                        this._remoteMethodFactory(id, inputType, outputType)
+                        this._remoteMethodFactory(this._methodIds[name], inputType, outputType)
                     )
                     this[name] = this._remoteMethods.get(name)
                 }
@@ -591,6 +591,32 @@ class DwarfClient {
      * @returns {rfr.CoreBindReply}
      */
     async BindMethod (method, inputMsg, outputMsg, plugin) {
+        const input = {
+            method: method, inputMsg: inputMsg, outputMsg: outputMsg, plugin: plugin
+        }
+        const inputFqn = this._typeNames.get('CoreBindRequest')
+        const outputFqn = this._typeNames.get('CoreBindReply')
+        const inputType = this._protoTypes.get(inputFqn)
+        const outputType = this._protoTypes.get(outputFqn)
+        const req = inputType.encode(inputType.create(input)).finish()
+        const msgs = await this.framed.writeRead(new DwarfMessage(0, req))
+        if (msgs[0].id === RPC.REPLY.FAIL) {
+            console.error(msgs[0])
+            return null
+        } else {
+            return outputType.toObject(outputType.decode(msgs[0].data))
+        }
+    }
+
+    /**
+     * GetVersion, dfproto.EmptyMessage, dfproto.StringMessage
+     * @param {string} method
+     * @param {string} inputMsg
+     * @param {string} outputMsg
+     * @param {?string=} plugin
+     * @returns {rfr.CoreBindReply}
+     */
+    async oldBindMethod (method, inputMsg, outputMsg, plugin) {
         const req = new cp.CoreBindRequest()
         req.setMethod(method)
         req.setInputMsg(inputMsg)
