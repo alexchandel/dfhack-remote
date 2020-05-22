@@ -5,8 +5,7 @@
   "main": "main.js",
   "scripts": {
     "test": "echo Error: no test specified && exit 1",
-    "proto": "protoc --proto_path=proto --js_out=import_style=commonjs,binary:build ./proto/*",
-    "protojs": "pbjs proto/*.proto --es6 -t json -o build/proto.json",
+    "proto": "pbjs proto/*.proto --es6 -t json -o build/proto.json",
     "build": "browserify main.js -o build/bundle.js"
   },
   "keywords": [
@@ -20,7 +19,6 @@
   "license": "ISC",
   "dependencies": {
     "browserify": "^16.5.1",
-    "google-protobuf": "^3.11.4",
     "protobufjs": "^6.9.0"
   },
   "repository": {
