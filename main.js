@@ -628,7 +628,7 @@ class DwarfClient {
     /**
      * @returns {rfr.MapInfo}
      */
-    async GetMapInfo () {
+    async oldGetMapInfo () {
         const req = new cp.EmptyMessage()
         const msgs = await this.framed.writeRead(
             new DwarfMessage(this.getMethodId('GetMapInfo'), req.serializeBinary())
