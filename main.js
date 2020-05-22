@@ -4,7 +4,7 @@
 const rfr = require('./build/RemoteFortressReader_pb.js')
 const cp = require('./build/CoreProtocol_pb.js')
 
-const pjson = require('./proto.json')
+const pjson = require('./build/proto.json')
 const protobuf = require('protobufjs/light')
 const root = protobuf.Root.fromJSON(pjson)
 
@@ -403,7 +403,7 @@ const FUNC_DEFS = [
         ListMaterials:  ['ListMaterialsIn', 'ListMaterialsOut'],
         ListUnits:      ['ListUnitsIn',     'ListUnitsOut'],
         ListSquads:     ['ListSquadsIn',    'ListSquadsOut'],
-        SetUnitLabors:  ['SetUnitLaborsIn', 'EmptyMessage'],
+        SetUnitLabors:  ['SetUnitLaborsIn', 'EmptyMessage']
     }],
     ['rename', 'dfproto', {
         RenameSquad:    ['RenameSquadIn',  'EmptyMessage'],
@@ -448,7 +448,7 @@ const FUNC_DEFS = [
         JumpCommand:        ['MoveCommandParams',   'EmptyMessage'],
         MenuQuery:          ['EmptyMessage',    'MenuContents'],
         MovementSelectCommand:  ['IntMessage',  'EmptyMessage'],
-        MiscMoveCommand:    ['MiscMoveParams',  'EmptyMessage'],
+        MiscMoveCommand:    ['MiscMoveParams',  'EmptyMessage']
     }],
     ['isoworldremote', 'isoworldremote', {
         GetEmbarkTile: ['TileRequest', 'EmbarkTile'],
@@ -652,8 +652,10 @@ class DwarfClient {
 
 function main () {
     const df = new DwarfClient()
-    // await df.GetBlockList(1, 1, 50, 9, 9, 56)
-    // await df.GetUnitListInside(1, 1, 50, 9, 9, 56)
+    // await df.GetMapInfo()
+    // await df.oldGetBlockList(1, 1, 50, 9, 9, 56)
+    // await df.GetUnitListInside({ minX: 1, minY: 1, minZ: 50, maxX: 9, maxY: 9, maxZ: 56 })
+    // await df.GetBlockList({minX: 1, minY: 1, minZ: 50, maxX: 9, maxY: 9, maxZ: 56})
     return df
 }
 
