@@ -1,8 +1,12 @@
 /* eslint indent: ["error", 4, {'SwitchCase': 1}] */
 /* eslint-disable no-prototype-builtins */
-const dfc = require('./build/DwarfControl_pb.js')
+// const dfc = require('./build/DwarfControl_pb.js')
 const rfr = require('./build/RemoteFortressReader_pb.js')
 const cp = require('./build/CoreProtocol_pb.js')
+
+const pjson = require('./proto.json')
+const protobuf = require('protobufjs/light')
+const root = protobuf.Root.fromJSON(pjson)
 
 /**
  * @param {Array} a
@@ -453,30 +457,92 @@ class DwarfClient {
     constructor () {
         this.framed = new CodecRunner(
             new DwarfWireCodec(),
-            () => this.resolveMethods()
+            () => this._initialize()
         )
-        /** @dict */
+        /**
+         * Maps short names to fully-qualified-names
+         * @type {Map<string, string>}
+         */
+        this._typeNames = new Map()
+        /**
+         * Maps fully-qualified-names to protobufjs types
+         * @type {Map<string, string>}
+         */
+        this._protoTypes = new Map()
+        /**
+         * Maps remote method names to IDs
+         * @type {Map<string, string|null>}
+         */
         this._methodIds = {}
-        /** @dict */
-        this._typeNames = {}
+        this._remoteMethods = new Map()
+
+        this._loadTypeNames()
+        this._loadProtoTypes()
     }
 
-    async resolveMethods () {
-        for (const [plugin, ns, methods] of FUNC_DEFS) {
-            for (const [name, [input, output]] of Object.entries(methods)) {
-                if (!this._typeNames.hasOwnProperty(input)) {
-                    this._typeNames[input] = `${ns}.${input}`
+    _loadTypeNames () {
+        for (const [, ns, methods] of FUNC_DEFS) {
+            for (const [, [input, output]] of Object.entries(methods)) {
+                if (!this._typeNames.has(input)) {
+                    this._typeNames.set(input, `${ns}.${input}`)
                 }
-                if (!this._typeNames.hasOwnProperty(output)) {
-                    this._typeNames[output] = `${ns}.${output}`
+                if (!this._typeNames.has(output)) {
+                    this._typeNames.set(output, `${ns}.${output}`)
                 }
-                const id = await this.BindMethod(
-                    name, this._typeNames[input], this._typeNames[output], plugin
-                )
+            }
+        }
+    }
+
+    _loadProtoTypes () {
+        for (const fqn of this._typeNames.values()) {
+            this._protoTypes.set(fqn, root.lookupType(fqn))
+        }
+    }
+
+    async _initialize () {
+        // cache method IDs, and construct remote method
+        for (const [plugin, , methods] of FUNC_DEFS) {
+            for (const [name, [inputShort, outputShort]] of Object.entries(methods)) {
+                const inputFqn = this._typeNames.get(inputShort)
+                const outputFqn = this._typeNames.get(outputShort)
+
+                const id = await this.BindMethod(name, inputFqn, outputFqn, plugin)
                 this._methodIds[name] = id == null ? id : id.getAssignedId()
+
+                if (id != null && name !== 'BindMethod') {
+                    const inputType = this._protoTypes.get(inputFqn)
+                    const outputType = this._protoTypes.get(outputFqn)
+                    this._remoteMethods.set(
+                        name,
+                        this._remoteMethodFactory(name, inputType, outputType)
+                    )
+                    this[name] = this._remoteMethods.get(name)
+                }
             }
         }
         return true
+    }
+
+    /**
+     * @template In, Out
+     * @param {string} name
+     * @param {In} inputType
+     * @param {Out} outputType
+     * @returns {function(In): Out)}
+     */
+    _remoteMethodFactory (name, inputType, outputType) {
+        return async function (input) {
+            const req = inputType.encode(inputType.create(input)).finish()
+            const msgs = await this.framed.writeRead(
+                new DwarfMessage(this.getMethodId('GetMapInfo'), req)
+            )
+            if (msgs[0].id === RPC.REPLY.FAIL) {
+                console.error(msgs[0])
+                return null
+            } else {
+                return outputType.toObject(outputType.decode(msgs[0].data))
+            }
+        }
     }
 
     /**
@@ -499,6 +565,10 @@ class DwarfClient {
 
     /**
      * GetVersion, dfproto.EmptyMessage, dfproto.StringMessage
+     * @param {string} method
+     * @param {string} inputMsg
+     * @param {string} outputMsg
+     * @param {?string=} plugin
      * @returns {rfr.CoreBindReply}
      */
     async BindMethod (method, inputMsg, outputMsg, plugin) {
@@ -522,7 +592,7 @@ class DwarfClient {
     /**
      * @returns {rfr.BlockList}
      */
-    async GetBlockList (minX, minY, minZ, maxX, maxY, maxZ, blocksNeeded) {
+    async oldGetBlockList (minX, minY, minZ, maxX, maxY, maxZ, blocksNeeded) {
         const req = new rfr.BlockRequest()
         req.setMinX(minX)
         req.setMinY(minY)
@@ -540,7 +610,7 @@ class DwarfClient {
     /**
      * @returns {rfr.UnitList}
      */
-    async GetUnitListInside (minX, minY, minZ, maxX, maxY, maxZ, blocksNeeded) {
+    async oldGetUnitListInside (minX, minY, minZ, maxX, maxY, maxZ, blocksNeeded) {
         const req = new rfr.BlockRequest()
         req.setMinX(minX)
         req.setMinY(minY)

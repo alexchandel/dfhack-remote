@@ -6,6 +6,7 @@
   "scripts": {
     "test": "echo Error: no test specified && exit 1",
     "proto": "protoc --proto_path=proto --js_out=import_style=commonjs,binary:build ./proto/*",
+    "protojs": "pbjs proto/*.proto --es6 -t json -o protos.json",
     "build": "browserify main.js -o build/bundle.js"
   },
   "keywords": [
