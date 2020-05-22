@@ -82,9 +82,11 @@ class CodecRunner {
         /** @type {!Array<Uint8Array>} */
         this._queuedWrites = []
         /** @type {!Array< [function(Out): void, function(?): void] >} */
-        this.callbackQueue = []
+        this._callbackQueue = []
         /** @type {!Array<Out|Error>} */
-        this.unreadMessages = []
+        this._unreadMessages = []
+
+        this._buf = new Uint8Array([])
 
         const self = this
         this.sock.onopen = function (e) {
@@ -101,14 +103,23 @@ class CodecRunner {
         this.sock.onerror = function (e) {
             console.error('CodecRunner WebSocket error:', e)
             self._queuedWrites.splice(0)
-            self.unreadMessages.splice(0)
+            self._unreadMessages.splice(0)
         }
         this.sock.onclose = function (e) {
             console.info('CodecRunner WebSocket: close:', e)
         }
         this.sock.onmessage = function (e) {
             // NOTE: in Node, it's e.data.text().then(text => ...)
-            const text = new Uint8Array(e.data)
+            /** @type {!Uint8Array} */
+            let text
+            if (self._buf.length) {
+                const newbuf = new Uint8Array(self._buf.length + e.data.byteLength)
+                newbuf.set(self._buf)
+                newbuf.set(new Uint8Array(e.data), self._buf.length)
+                text = newbuf
+            } else {
+                text = new Uint8Array(e.data)
+            }
             /** @type {[!Uint8Array]} */
             const buf = [text]
             let prevLen
@@ -124,7 +135,7 @@ class CodecRunner {
                     } else {
                         self.sock.close()
                         // socket dead, send error to all waiting callbacks:
-                        const cbs = self.callbackQueue.splice(0, self.callbackQueue.length)
+                        const cbs = self._callbackQueue.splice(0, self._callbackQueue.length)
                         for (const callback of cbs) {
                             callback[1](e)
                         }
@@ -136,25 +147,27 @@ class CodecRunner {
                     // pass DF message
                     self._popReply(maybeItem)
                 } // else, have not received enough data to decode
-            } while (prevLen > buf[0].length) // TODO should use maybeItem != null?
+            } while (prevLen > buf[0].length && buf[0].length) // TODO should use maybeItem != null?
+
+            self._buf = buf[0]
         }
     }
 
     _popReply (/** @type {!Out} */ reply) {
-        const callback = this.callbackQueue.shift()
+        const callback = this._callbackQueue.shift()
         if (callback !== undefined) {
             callback[0](reply)
         } else {
-            this.unreadMessages.push(reply)
+            this._unreadMessages.push(reply)
         }
     }
 
     _popReject (reason) {
-        const callback = this.callbackQueue.shift()
+        const callback = this._callbackQueue.shift()
         if (callback !== undefined) {
             callback[1](reason)
         } else {
-            this.unreadMessages.push(reason)
+            this._unreadMessages.push(reason)
         }
     }
 
@@ -175,17 +188,17 @@ class CodecRunner {
      * @returns {!Promise<Out>}
      */
     async read () {
-        if (this.unreadMessages.length) {
-            // drain this.unreadMessages if one is queued up
-            console.warn('Response arrived before request: %s', this.unreadMessages[0])
-            const msg = this.unreadMessages.shift()
+        if (this._unreadMessages.length) {
+            // drain this._unreadMessages if one is queued up
+            console.warn('Response arrived before request: %s', this._unreadMessages[0])
+            const msg = this._unreadMessages.shift()
             return msg instanceof Error ? Promise.reject(msg) : Promise.resolve(msg)
         } else {
-            const callbackQueue = this.callbackQueue
+            const _callbackQueue = this._callbackQueue
             // resolve is invoked if codec yields a successful item.
             // reject is invoked if codec throws FramedCodecError.
             return new Promise((resolve, reject) => {
-                callbackQueue.push([resolve, reject])
+                _callbackQueue.push([resolve, reject])
             })
         }
     }
