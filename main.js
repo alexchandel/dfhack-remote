@@ -5,6 +5,12 @@ const rfr = require('./build/RemoteFortressReader_pb.js')
 const cp = require('./build/CoreProtocol_pb.js')
 
 const pjson = require('./build/proto.json')
+{ // HACK: fix illegal messages from RFR
+    const flds = pjson.nested['RemoteFortressReader'].nested['MapBlock'].fields
+    delete flds['mapX'].rule
+    delete flds['mapY'].rule
+    delete flds['mapZ'].rule
+}
 const protobuf = require('protobufjs/light')
 const root = protobuf.Root.fromJSON(pjson)
 
