@@ -527,7 +527,7 @@ class DwarfClient {
                     const outputType = this._protoTypes.get(outputFqn)
                     this._remoteMethods.set(
                         name,
-                        this._remoteMethodFactory(name, inputType, outputType)
+                        this._remoteMethodFactory(id, inputType, outputType)
                     )
                     this[name] = this._remoteMethods.get(name)
                 }
@@ -538,16 +538,16 @@ class DwarfClient {
 
     /**
      * @template In, Out
-     * @param {string} name
+     * @param {number} methodId
      * @param {In} inputType
      * @param {Out} outputType
      * @returns {function(In): Out)}
      */
-    _remoteMethodFactory (name, inputType, outputType) {
+    _remoteMethodFactory (methodId, inputType, outputType) {
         return async function (input) {
             const req = inputType.encode(inputType.create(input)).finish()
             const msgs = await this.framed.writeRead(
-                new DwarfMessage(this.getMethodId('GetMapInfo'), req)
+                new DwarfMessage(methodId, req)
             )
             if (msgs[0].id === RPC.REPLY.FAIL) {
                 console.error(msgs[0])
