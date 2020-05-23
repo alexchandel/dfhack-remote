@@ -1,11 +1,15 @@
 # dfhack-remote
 
-This project will provide browser-side bindings to
+This project provides browser-side JavaScript bindings to Dwarf Fortress, using
 [RemoteFortressReader](https://github.com/DFHack/dfhack/tree/master/plugins/remotefortressreader)
 ("RFR"), the [protobuf](https://developers.google.com/protocol-buffers)-based
 remote access interface to [DFHack](https://github.com/DFHack/dfhack).
 
 It will also provide a browser-based fortress viewer.
+
+## How it works
+
+You run a `websockify` proxy, and open an HTML page with `dfhack-remote`.  The page's code connects to DFHack through the `websockify` proxy, and loads your fortress.
 
 ## Dependencies
 
@@ -45,3 +49,7 @@ To wrap that with WebSockets on TCP port `8080`, for example, run:
 ```sh
 websockify 127.0.0.1:8080 127.0.0.1:5000
 ```
+
+## TODO
+
+Optimize, like `java -jar closure-compiler-v20200517.jar -O ADVANCED --js_output_file build/bundle.min.js --js build/bundle.js`

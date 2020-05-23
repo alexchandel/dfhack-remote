@@ -607,7 +607,10 @@ class DwarfClient {
     }
 }
 
-function main () {
+/**
+ * @returns {!DwarfClient}
+ */
+function newDwarfClient () {
     const df = new DwarfClient()
     // await df.GetMapInfo()
     // await df.oldGetBlockList(1, 1, 50, 9, 9, 56)
@@ -617,4 +620,5 @@ function main () {
 }
 
 window.FUNC_DEFS = FUNC_DEFS
-window.main = main
+window.DwarfClient = DwarfClient
+window.newDwarfClient = newDwarfClient
