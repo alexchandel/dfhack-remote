@@ -9,7 +9,7 @@ It will also provide a browser-based fortress viewer.
 
 ## How it works
 
-You run a `websockify` proxy, and open an HTML page with `dfhack-remote`.  The page's code connects to DFHack through the `websockify` proxy, and loads your fortress.
+You run a `websockify` proxy, and open an HTML page containing `dfhack-remote`.  The page's code connects to DFHack through the `websockify` proxy, and loads your fortress.
 
 ## Dependencies
 

@@ -391,6 +391,9 @@ class DwarfWireCodec extends Codec {
 }
 
 /* eslint-disable key-spacing, no-multi-spaces */
+/**
+ * @type {Array<[?string, string, !Object<string, [string, string]>]>}
+ */
 const FUNC_DEFS = [
     // plugin, namespace for new protobuf types, { methods }
     [null, 'dfproto', {
@@ -463,9 +466,37 @@ const FUNC_DEFS = [
 /* eslint-enable key-spacing, no-multi-spaces */
 
 /**
- * Thrown if the method is missing.
+ * Parses & caches fully-qualified names of protobuf types.
+ * @param {!Array<[?string, string, !Object<string, [string, string]>]>} defs
+ * @returns {!Map<string, string>}
  */
-class DFHackNotBound extends Error { }
+function _loadTypeNames (defs) {
+    /** @type {!Map<string, string>} */
+    const typeNames = new Map()
+    for (const [/* plugin */, ns, methods] of defs) {
+        for (const [/* name */, [input, output]] of Object.entries(methods)) {
+            if (!typeNames.has(input)) {
+                typeNames.set(input, `${ns}.${input}`)
+            }
+            if (!typeNames.has(output)) {
+                typeNames.set(output, `${ns}.${output}`)
+            }
+        }
+    }
+    return typeNames
+}
+
+/**
+ * Links fully-qualified typenames to actual class objects.
+ * @param {!Map<string, string>} typeNames
+ * @returns {!Map<string, protobuf.Type>}
+ */
+function _loadProtoTypes (typeNames) {
+    return new Map(
+        Array.from(typeNames.values())
+            .map(fqn => [fqn, root.lookupType(fqn)])
+    )
+}
 
 /**
  * @struct
@@ -478,44 +509,23 @@ class DwarfClient {
         )
         /**
          * Maps short names to fully-qualified-names
-         * @type {Map<string, string>}
          */
-        this._typeNames = new Map()
+        this._typeNames = _loadTypeNames(FUNC_DEFS)
         /**
          * Maps fully-qualified-names to protobufjs types
-         * @type {Map<string, string>}
          */
-        this._protoTypes = new Map()
+        this._protoTypes = _loadProtoTypes(this._typeNames)
         /**
          * Maps remote method names to IDs
-         * @type {Map<string, string|null>}
+         * @type {Map<string, number|null>}
          */
         this._methodIds = {}
         this._remoteMethods = new Map()
-
-        this._loadTypeNames()
-        this._loadProtoTypes()
     }
 
-    _loadTypeNames () {
-        for (const [, ns, methods] of FUNC_DEFS) {
-            for (const [, [input, output]] of Object.entries(methods)) {
-                if (!this._typeNames.has(input)) {
-                    this._typeNames.set(input, `${ns}.${input}`)
-                }
-                if (!this._typeNames.has(output)) {
-                    this._typeNames.set(output, `${ns}.${output}`)
-                }
-            }
-        }
-    }
-
-    _loadProtoTypes () {
-        for (const fqn of this._typeNames.values()) {
-            this._protoTypes.set(fqn, root.lookupType(fqn))
-        }
-    }
-
+    /**
+     * Called after connected, to load the current method IDs of known methods.
+     */
     async _initialize () {
         // cache method IDs, and construct remote method
         for (const [plugin, , methods] of FUNC_DEFS) {
@@ -523,10 +533,10 @@ class DwarfClient {
                 const inputFqn = this._typeNames.get(inputShort)
                 const outputFqn = this._typeNames.get(outputShort)
 
-                const id = await this.BindMethod(name, inputFqn, outputFqn, plugin)
-                this._methodIds[name] = id == null ? id : id['assignedId']
+                const idReply = await this.BindMethod(name, inputFqn, outputFqn, plugin)
+                this._methodIds[name] = idReply != null ? idReply['assignedId'] : null
 
-                if (id != null && name !== 'BindMethod') {
+                if (idReply != null && name !== 'BindMethod') {
                     const inputType = this._protoTypes.get(inputFqn)
                     const outputType = this._protoTypes.get(outputFqn)
                     this._remoteMethods.set(
@@ -541,11 +551,10 @@ class DwarfClient {
     }
 
     /**
-     * @template In, Out
      * @param {number} methodId
-     * @param {In} inputType
-     * @param {Out} outputType
-     * @returns {function(In): Out}
+     * @param {protobuf.Type} inputType
+     * @param {protobuf.Type} outputType
+     * @returns {function(Object): Object}
      */
     _remoteMethodFactory (methodId, inputType, outputType) {
         return async function (input) {
@@ -570,23 +579,12 @@ class DwarfClient {
     }
 
     /**
-     * @param {string} name
-     * @returns {number}
-     * @throws {DFHackNotBound}
-     */
-    getMethodId (name) {
-        const id = this._methodIds[name]
-        if (id == null) throw new DFHackNotBound(name)
-        else return id
-    }
-
-    /**
-     * GetVersion, dfproto.EmptyMessage, dfproto.StringMessage
+     * The only predefined RPC method.  Gets the method IDs of other methods.
      * @param {string} method
      * @param {string} inputMsg
      * @param {string} outputMsg
      * @param {?string=} plugin
-     * @returns {rfr.CoreBindReply}
+     * @returns {?{assignedId: number}}
      */
     async BindMethod (method, inputMsg, outputMsg, plugin) {
         const input = {
