@@ -76,15 +76,48 @@ await df.GetUnitListInside({ minX: 1, minY: 1, minZ: 50, maxX: 9, maxY: 9, maxZ:
 await df.GetBlockList({minX: 1, minY: 1, minZ: 50, maxX: 9, maxY: 9, maxZ: 56})
 ```
 
+## Documentation
+
+The API defines one class, `DwarfClient`:
+
+```js
+/**
+ * @struct
+ */
+class DwarfClient {
+    /**
+     * Upon construction, immediately tries to connect to DFHack.
+     * @param {?(number|string)} host An optional numeric port, or string like "127.0.0.1:8080"
+     */
+    constructor (host = null) {
+        ...
+    }
+    ...
+}
+```
+
+It has one `async` method for every RFR method.  Pass arguments to RFR methods with a dictionary:
+
+```js
+df = new DwarfClient()
+await df.GetMapInfo()
+await df.GetUnitListInside({ minX: 1, minY: 1, minZ: 50, maxX: 9, maxY: 9, maxZ: 56 })
+await df.GetBlockList({minX: 1, minY: 1, minZ: 50, maxX: 9, maxY: 9, maxZ: 56})
+```
+
+The RFR methods are (sort of) listed in `FUNC_DEFS` in `main.js`.  The RFR
+types are defined in the protobuf files in `proto/`.
+
 ## Issues
 
 RemoteFortressReader has a strange bug where it "remembers" what it returned to
-`GetBlockList`, and never returns a block again unless it changes.  This is a
+`GetBlockList`, and never returns a block again unless it changes.  That's a
 buggy way to implement "change-driven notifications" and should be fixed there.
-For now, remember `GetBlockList` effectively only returns changes.
+For now, remember `GetBlockList` only returns changes since the last call!
 
 ### TODO
 
 * Make the client an actual JavaScript module.  Right now, it's stuffed into `window.DwarfClient`.
-* Embed dfhack as a subrepository, and dynamically find prototypes.  Right now, they're just copied.
+* Optionally print the CoreTextNotification responses somewhere.  Right now, they're just thrown away.
+* Embed dfhack as a subrepository, and dynamically find protobuf's.  Right now, they're just copied.
 * Optimize, like `java -jar closure-compiler-v20200517.jar -O ADVANCED --js_output_file build/bundle.min.js --js build/bundle.js`

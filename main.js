@@ -510,6 +510,7 @@ function _loadProtoTypes (typeNames) {
  */
 class DwarfClient {
     /**
+     * Upon construction, immediately tries to connect to DFHack.
      * @param {?(number|string)} host An optional numeric port, or string like "127.0.0.1:8080"
      */
     constructor (host = null) {
