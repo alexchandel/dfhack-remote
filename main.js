@@ -1,5 +1,4 @@
 /* eslint indent: ["error", 4, {'SwitchCase': 1}] */
-/* eslint-disable no-prototype-builtins */
 /* window, WebSocket */
 
 const pjson = require('./build/proto.json')
@@ -76,12 +75,20 @@ class Codec {
  */
 class CodecRunner {
     /**
-     * @param {!Codec<In, Out>} codec
-     * @param {function(CodecRunner): void} onopen
+     * @param {!Codec<In, Out>} codec Codec to decode/encode WebSocket stream
+     * @param {function(CodecRunner): void} onopen Optional callback when stream is ready
+     * @param {?(number|string)} host Optional numeric port, or string like "127.0.0.1:8080"
      */
-    constructor (codec, onopen) {
+    constructor (codec, onopen = null, host = null) {
+        if (host == null) {
+            host = '127.0.0.1:8080'
+        } else if (typeof host === 'number') {
+            host = `127.0.0.1:${host}`
+        } else {
+            host = `${host}`
+        }
         this.codec = codec
-        this.sock = new window.WebSocket('ws://127.0.0.1:8080/')
+        this.sock = new window.WebSocket(`ws://${host}/`)
         this.sock.binaryType = 'arraybuffer'
         /** @type {!Array<Uint8Array>} */
         this._queuedWrites = []
@@ -502,10 +509,14 @@ function _loadProtoTypes (typeNames) {
  * @struct
  */
 class DwarfClient {
-    constructor () {
+    /**
+     * @param {?(number|string)} host An optional numeric port, or string like "127.0.0.1:8080"
+     */
+    constructor (host = null) {
         this.framed = new CodecRunner(
             new DwarfWireCodec(),
-            () => this._initialize()
+            () => this._initialize(),
+            host
         )
         /**
          * Maps short names to fully-qualified-names
@@ -611,12 +622,11 @@ class DwarfClient {
 function newDwarfClient () {
     const df = new DwarfClient()
     // await df.GetMapInfo()
-    // await df.oldGetBlockList(1, 1, 50, 9, 9, 56)
     // await df.GetUnitListInside({ minX: 1, minY: 1, minZ: 50, maxX: 9, maxY: 9, maxZ: 56 })
     // await df.GetBlockList({minX: 1, minY: 1, minZ: 50, maxX: 9, maxY: 9, maxZ: 56})
     return df
 }
 
-window.FUNC_DEFS = FUNC_DEFS
+// window.FUNC_DEFS = FUNC_DEFS
 window.DwarfClient = DwarfClient
 window.newDwarfClient = newDwarfClient
