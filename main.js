@@ -88,7 +88,7 @@ class CodecRunner {
             host = `${host}`
         }
         this.codec = codec
-        this.sock = new window.WebSocket(`ws://${host}/`)
+        this.sock = new window.WebSocket(`ws://${host}/`, ['binary', 'base64'])
         this.sock.binaryType = 'arraybuffer'
         /** @type {!Array<Uint8Array>} */
         this._queuedWrites = []

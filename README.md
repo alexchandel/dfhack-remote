@@ -43,7 +43,7 @@ choco install -y nodejs python
 Setup your development environment and compile:
 
 * Install node dependencies with `npm install`.
-* Compile RFR's protobufs (in `proto/`) to `build/` with `npm run proto`.
+* Compile RFR's protobufs (in `proto/`) to `build/` with `mkdir -p build && npm run proto`.
 * Compile the JavaScript client to `build/bundle.js` with `npm run build`
 
 ### Run Websockify Wrapper
@@ -56,7 +56,7 @@ RFR listens on `127.0.0.1` on TCP port `5000` by default.
 To wrap that with WebSockets on TCP port `8080`, run:
 
 ```sh
-websockify 127.0.0.1:8080 127.0.0.1:5000
+websockify --web=. 127.0.0.1:8080 127.0.0.1:5000
 ```
 
 ### Try the Example
@@ -102,11 +102,13 @@ It has one `async` method for every RFR method.  Pass arguments to RFR methods w
 df = new DwarfClient()
 await df.GetMapInfo()
 await df.GetUnitListInside({ minX: 1, minY: 1, minZ: 50, maxX: 9, maxY: 9, maxZ: 56 })
-await df.GetBlockList({minX: 1, minY: 1, minZ: 50, maxX: 9, maxY: 9, maxZ: 56})
+await df.GetBlockList({ minX: 1, minY: 1, minZ: 50, maxX: 9, maxY: 9, maxZ: 56 })
 ```
 
 The RFR methods are (sort of) listed in `FUNC_DEFS` in `main.js`.  The RFR
 types are defined in the protobuf files in `proto/`.
+
+note: if necessary, parameter names must be converted to camel-case (e.g: ```list_start```->```listStart```)
 
 ## Issues
 
