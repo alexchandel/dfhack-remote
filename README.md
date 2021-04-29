@@ -40,7 +40,7 @@ choco install -y nodejs
 Setup your development environment and compile:
 
 * Install node dependencies with `npm install`.
-* Compile RFR's protobufs (in `proto/`) to `build/` with `mkdir -p build && npm run proto`.
+* Compile RFR's protobufs (in `proto/`) to `build/` with `mkdir build && npm run proto`.
 * Compile the JavaScript client to `build/bundle.js` with `npm run build`
 
 ### Run Websockify Wrapper
