@@ -66,6 +66,8 @@ df = new DwarfClient()
 await df.GetMapInfo()
 ```
 
+Now you can run Dwarf Fortress with DFHack and get access to data from http://127.0.0.1:8080 
+
 Pass arguments to RFR methods with a dictionary:
 
 ```js
