@@ -23,33 +23,30 @@ with [threejs](https://threejs.org/)/[voxeljs-next](https://github.com/joshmarin
 
 ### Dependencies
 
-* [Node.js](https://nodejs.org/en/), for protobuf libraries
-* Python, to run `websockify` (see also experimental [websockify.js](https://github.com/novnc/websockify-js))
+* [Node.js](https://nodejs.org/en/), for protobuf libraries and websockify
 
 These are available on most package managers.  For example,
 
 ```sh
-brew install node python
+brew install node
 ```
 
 ```sh
-choco install -y nodejs python
+choco install -y nodejs
 ```
-
-* Install Python's `websockify` with `pip install websockify`
 
 ### Compile Browser Bindings
 
 Setup your development environment and compile:
 
 * Install node dependencies with `npm install`.
-* Compile RFR's protobufs (in `proto/`) to `build/` with `mkdir -p build && npm run proto`.
+* Compile RFR's protobufs (in `proto/`) to `build/` with `mkdir build && npm run proto`.
 * Compile the JavaScript client to `build/bundle.js` with `npm run build`
 
 ### Run Websockify Wrapper
 
 As browsers can only talk to WebSocket ports, not RFR's raw TCP ports,
-you must run a [websockify](https://github.com/novnc/websockify) gateway
+you must run a [websockify](https://github.com/novnc/websockify-js) gateway
 to forward browser requests to RFR.
 
 RFR listens on `127.0.0.1` on TCP port `5000` by default.
@@ -68,6 +65,8 @@ you can open `main.html`.  Try this:
 df = new DwarfClient()
 await df.GetMapInfo()
 ```
+
+Now you can run Dwarf Fortress with DFHack and get access to data from http://127.0.0.1:8080 
 
 Pass arguments to RFR methods with a dictionary:
 

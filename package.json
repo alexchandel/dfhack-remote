@@ -19,7 +19,9 @@
   "license": "ISC",
   "dependencies": {
     "browserify": "^16.5.1",
-    "protobufjs": "^6.9.0"
+    "protobufjs": "^6.9.0",
+    "websockify": "^0.7.1",
+    "ws": "~0.4.27"
   },
   "repository": {
     "type": "git",
