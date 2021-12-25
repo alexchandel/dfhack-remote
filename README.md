@@ -53,7 +53,7 @@ RFR listens on `127.0.0.1` on TCP port `5000` by default.
 To wrap that with WebSockets on TCP port `8080`, run:
 
 ```sh
-websockify --web=. 127.0.0.1:8080 127.0.0.1:5000
+npx websockify --web=. 127.0.0.1:8080 127.0.0.1:5000
 ```
 
 ### Try the Example
@@ -63,16 +63,16 @@ you can open `main.html`.  Try this:
 
 ```js
 df = new DwarfClient()
-await df.GetMapInfo()
+x = await df.GetMapInfo()
 ```
 
-Now you can run Dwarf Fortress with DFHack and get access to data from http://127.0.0.1:8080 
+Now you can run Dwarf Fortress with DFHack and get access to data from http://127.0.0.1:8080
 
 Pass arguments to RFR methods with a dictionary:
 
 ```js
-await df.GetUnitListInside({ minX: 1, minY: 1, minZ: 50, maxX: 9, maxY: 9, maxZ: 56 })
-await df.GetBlockList({minX: 1, minY: 1, minZ: 50, maxX: 9, maxY: 9, maxZ: 56})
+x = await df.GetUnitListInside({ minX: 1, minY: 1, minZ: 50, maxX: 9, maxY: 9, maxZ: 56 })
+x = await df.GetBlockList({minX: 1, minY: 1, minZ: 50, maxX: 9, maxY: 9, maxZ: 56})
 ```
 
 ## Documentation
