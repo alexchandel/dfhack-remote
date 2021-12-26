@@ -514,6 +514,10 @@ class DwarfClient {
      * @param {?(number|string)} host An optional numeric port, or string like "127.0.0.1:8080"
      */
     constructor (host = null) {
+        /**
+         * Condition variable that is signalled after opening
+         */
+        this._initialized = new Promise((res, rej) => {this._initialized_res = res})
         this.framed = new CodecRunner(
             new DwarfWireCodec(),
             () => this._initialize(),
@@ -559,7 +563,15 @@ class DwarfClient {
                 }
             }
         }
+        this._initialized_res()
         return true
+    }
+
+    /**
+     * Wait for WebSocket connection to open, and methods to initialize.
+     */
+    async ready () {
+        await this._initialized
     }
 
     /**
