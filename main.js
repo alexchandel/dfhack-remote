@@ -92,9 +92,15 @@ class CodecRunner {
         this.sock.binaryType = 'arraybuffer'
         /** @type {!Array<Uint8Array>} */
         this._queuedWrites = []
-        /** @type {!Array< {0: function(Out): void, 1: function(?): void} >} */
+        /**
+         * Queue of [resolve, reject] functions for all Promises
+         * @type {!Array< {0: function(Out): void, 1: function(?): void} >}
+         */
         this._callbackQueue = []
-        /** @type {!Array<Out|Error>} */
+        /**
+         * Messages that arrived before a call. Usually empty.
+         * @type {!Array<Out|Error>}
+         */
         this._unreadMessages = []
 
         this._buf = new Uint8Array([])
@@ -144,6 +150,7 @@ class CodecRunner {
                         // FramedCodecError is recoverable
                         self._popReject(e)
                     } else {
+                        // unrecoverable. possibly CodecError
                         self.sock.close()
                         // socket dead, send error to all waiting callbacks:
                         const cbs = self._callbackQueue.splice(0, self._callbackQueue.length)
@@ -518,6 +525,9 @@ class DwarfClient {
          * Condition variable that is signalled after opening
          */
         this._initialized = new Promise((res, rej) => {this._initialized_res = res})
+        /**
+         * The wrapped WebSocket connection + codec runner
+         */
         this.framed = new CodecRunner(
             new DwarfWireCodec(),
             () => this._initialize(),
@@ -586,6 +596,7 @@ class DwarfClient {
             const msgs = await this.framed.writeRead(
                 new DwarfMessage(methodId, req)
             )
+            // TODO handle text messages
             if (msgs[0].id === RPC.REPLY.FAIL) {
                 console.error(msgs[0])
                 return null
