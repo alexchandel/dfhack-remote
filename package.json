@@ -4,10 +4,10 @@
   "description": "DFHack protobuf.js bindings",
   "main": "lib.js",
   "scripts": {
-    "test": "echo Error: no test specified && exit 1",
     "install": "mkdir build",
     "postinstall": "pbjs proto/*.proto --es6 -t json -o build/proto.json",
-    "build": "browserify main.js -o build/bundle.js"
+    "pretest": "browserify main.js -o build/bundle.js",
+    "test": "websockify --web=. 127.0.0.1:8080 127.0.0.1:5000"
   },
   "keywords": [
     "dwarf",
@@ -19,8 +19,10 @@
   "author": "Alex",
   "license": "ISC",
   "dependencies": {
+    "protobufjs": "^6.9.0"
+  },
+  "devDependencies": {
     "browserify": "^16.5.1",
-    "protobufjs": "^6.9.0",
     "websockify": "^0.7.1",
     "ws": "~0.4.27"
   },
