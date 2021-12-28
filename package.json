@@ -2,7 +2,7 @@
   "name": "dfhack-remote",
   "version": "1.0.0",
   "description": "DFHack protobuf.js bindings",
-  "main": "main.js",
+  "main": "lib.js",
   "scripts": {
     "test": "echo Error: no test specified && exit 1",
     "proto": "pbjs proto/*.proto --es6 -t json -o build/proto.json",

@@ -651,6 +651,6 @@ function newDwarfClient () {
     return df
 }
 
-// window.FUNC_DEFS = FUNC_DEFS
-window.DwarfClient = DwarfClient
-window.newDwarfClient = newDwarfClient
+exports.FUNC_DEFS = FUNC_DEFS
+exports.DwarfClient = DwarfClient
+exports.newDwarfClient = newDwarfClient
