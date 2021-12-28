@@ -21,7 +21,7 @@ with [threejs](https://threejs.org/)/[voxeljs-next](https://github.com/joshmarin
 
 ## Setup
 
-### Dependencies
+### Prerequisites
 
 * [Node.js](https://nodejs.org/en/), for protobuf libraries and websockify
 
@@ -37,36 +37,25 @@ choco install -y nodejs
 
 ### Compile Browser Bindings
 
-Setup your development environment and compile:
+Setup your development environment:
 
 * Install node dependencies with `npm install`.
-* Compile RFR's protobufs (in `proto/`) to `build/` with `mkdir build && npm run proto`.
-* Compile the JavaScript client to `build/bundle.js` with `npm run build`
+  * Note: this also compiles RFR's protobufs (from `proto/`) into `build/`.
 
-### Run Websockify Wrapper
+Run the example:
 
-As browsers can only talk to WebSocket ports, not RFR's raw TCP ports,
-you must run a [websockify](https://github.com/novnc/websockify-js) gateway
-to forward browser requests to RFR.
+* Compile the JavaScript example to `build/bundle.js` and launch the `websockify` server with `npm test`
 
-RFR listens on `127.0.0.1` on TCP port `5000` by default.
-To wrap that with WebSockets on TCP port `8080`, run:
+### Running the Example
 
-```sh
-npx websockify --web=. 127.0.0.1:8080 127.0.0.1:5000
-```
-
-### Try the Example
-
-After compiling `build/bundle.js` and running DF & `websockify`,
-you can open `main.html`.  Try this:
+Run Dwarf Fortress with DFHack and load a fort.
+Then run the example with `npm test`.
+Now you can open `index.html`.  Try this in your browser's Inspector:
 
 ```js
 df = new DwarfClient()
 x = await df.GetMapInfo()
 ```
-
-Now you can run Dwarf Fortress with DFHack and get access to data from http://127.0.0.1:8080
 
 Pass arguments to RFR methods with a dictionary:
 
@@ -108,6 +97,23 @@ The RFR methods are (sort of) listed in `FUNC_DEFS` in `main.js`.  The RFR
 types are defined in the protobuf files in `proto/`.
 
 note: if necessary, parameter names must be converted to camel-case (e.g: ```list_start```->```listStart```)
+
+### Running a Websockify Wrapper
+
+As browsers can only talk to WebSocket ports, not RFR's raw TCP ports,
+you must run a [websockify](https://github.com/novnc/websockify-js) gateway
+to forward browser requests to RFR.
+
+RFR listens on `127.0.0.1` on TCP port `5000` by default.
+To wrap that with WebSockets on TCP port `8080`, run:
+
+```sh
+npx websockify --web=. 127.0.0.1:8080 127.0.0.1:5000
+```
+
+`npm test` automatically runs this.
+
+Now you can run Dwarf Fortress with DFHack and access data from http://127.0.0.1:8080.
 
 ## Issues
 
