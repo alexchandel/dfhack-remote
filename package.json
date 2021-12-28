@@ -5,7 +5,7 @@
   "main": "lib.js",
   "scripts": {
     "test": "echo Error: no test specified && exit 1",
-    "proto": "pbjs proto/*.proto --es6 -t json -o build/proto.json",
+    "prepare": "pbjs proto/*.proto --es6 -t json -o build/proto.json",
     "build": "browserify main.js -o build/bundle.js"
   },
   "keywords": [
